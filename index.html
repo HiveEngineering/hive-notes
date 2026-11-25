@@ -197,7 +197,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.4';
+const VERSION = '0.3.5';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1335,9 +1335,19 @@ function staffForm(s) {
     if (S.staff.some(x => x.id !== s.id && x.username === row.username)) { $('#sfx', m).textContent = 'That user name is taken.'; return; }
     if (isNew && S.staff.some(x => x.email === row.email)) { $('#sfx', m).textContent = 'Someone already has that email.'; return; }
     if (!S.online && S.mode === 'live') { $('#sfx', m).textContent = 'Adding staff needs a connection.'; return; }
-    try { if (isNew) { const r = await B().invite(row); closeModal(); if (S.mode === 'demo') inviteInfo(row); else { toast(`Invitation emailed to ${row.email}`); await Live.pull(); } } else { await B().updateStaff(row); if (row.id === S.me.id) S.me = {...S.me, ...row}; closeModal(); toast('Saved'); } render(); }
+    try { if (isNew) { const r = await B().invite(row); closeModal(); if (S.mode === 'demo') inviteInfo(row); else { if (r && r.mail_error) manualInvite(row, r); else toast(`Invitation emailed to ${row.email}`); await Live.pull(); } } else { await B().updateStaff(row); if (row.id === S.me.id) S.me = {...S.me, ...row}; closeModal(); toast('Saved'); } render(); }
     catch (err) { $('#sfx', m).textContent = err.message || String(err); }
   };
+}
+function manualInvite(s, r) { // the person was added, but the email service refused – let the admin send the link
+  const msg = `Hi ${s.full_name.split(' ')[0]},\n\nYou’ve been added to Hive-Notes, Hive’s app for safety plans and site notes.\n\nYour user name: ${r.username || s.username}\nSet your password with this link (it works once and expires in 24 hours):\n${r.link}\n\nAfter that, open ${appUrl()} and sign in. On a phone, use “Add to Home Screen” so it opens like an app and works without a signal.`;
+  const m = modal(`<div class="mhead"><h2>${esc(s.full_name)} was added – but the email didn’t send</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <div class="band small"><b>Email service said:</b> ${esc(r.mail_error)}</div>
+   <p>Copy this message and send it to <b>${esc(s.email)}</b> from your own email or Teams. Once your email domain is verified, “Resend invite” will email it for you.</p>
+   <textarea id="minv" rows="10" readonly style="font-size:14px">${esc(msg)}</textarea>
+   <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" data-x>Close</button><button class="btn pri" id="mcopy">Copy message</button></div>`, 'narrow');
+  $('#mcopy', m).onclick = async () => { try { await navigator.clipboard.writeText(msg); toast('Copied'); } catch (e) { const t = $('#minv', m); t.select(); document.execCommand('copy'); toast('Copied'); } };
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
 }
 function inviteInfo(s) {
   const m = modal(`<h2>Invitation (demo)</h2><div class="band small">Demo mode – no email was sent.</div><p><b>To:</b> ${esc(s.email)}<br><b>Subject:</b> You’ve been added to Hive-Notes</p>
@@ -1442,7 +1452,7 @@ document.addEventListener('click', async e => {
     // staff
     case 'addstaff': staffForm(); break;
     case 'editstaff': staffForm(staffById(a.dataset.id)); break;
-    case 'reinvite': { const s = staffById(a.dataset.id); try { await B().adminAction('resend', {id: s.id}); S.mode === 'demo' ? inviteInfo(s) : toast('Invitation sent again to ' + s.email); } catch (x) { toast(x.message); } break; }
+    case 'reinvite': { const s = staffById(a.dataset.id); try { const r = await B().adminAction('resend', {id: s.id}); S.mode === 'demo' ? inviteInfo(s) : r && r.mail_error ? manualInvite(s, r) : toast('Invitation sent again to ' + s.email); } catch (x) { toast(x.message); } break; }
     case 'toggleactive': { const s = staffById(a.dataset.id); const on = s.active === false; if (!await ask(on ? 'Reactivate?' : 'Deactivate?', on ? `${s.full_name} will be able to sign in again.` : `${s.full_name} won’t be able to sign in. Their plans stay.`, on ? 'Reactivate' : 'Deactivate', !on)) break; try { await B().adminAction('set_active', {id: s.id, active: on}); s.active = on; if (S.mode === 'demo') await Demo.saveStaff(S.staff); else await Live.pull(); render(); } catch (x) { toast(x.message); } break; }
   }
 });
