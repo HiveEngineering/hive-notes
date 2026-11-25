@@ -32,6 +32,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .top .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:19px;background:none;border:0;padding:4px;cursor:pointer;color:var(--navy)}
 .top .brand svg,.top .brand img{height:32px;width:auto}
 .top .sp{flex:1}
+.top .ver{font-size:12px;font-weight:600;color:var(--navy);opacity:.75;white-space:nowrap}
 .badge{font-size:13px;font-weight:600;padding:4px 10px;border-radius:99px;background:#ffffffcc;color:var(--navy);white-space:nowrap}
 .badge.off{background:var(--yellow)}
 .iconbtn{min-width:44px;min-height:44px;border:0;border-radius:10px;background:#ffffff55;color:var(--navy);font-weight:700;cursor:pointer;padding:0 10px}
@@ -196,7 +197,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.1';
+const VERSION = '0.3.3';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -459,9 +460,9 @@ addEventListener('popstate', e => { if ($('#layer').innerHTML) { closeModal(); t
 
 function topbar() {
   const t = $('#top');
-  if (!S.me || S.me.noProfile) { t.innerHTML = `<div class="brand">${logoHtml()}<span>Hive-Notes</span></div>`; return; }
+  if (!S.me || S.me.noProfile) { t.innerHTML = `<div class="brand">${logoHtml()}<span>Hive-Notes</span></div><span class="ver" title="App version">v${VERSION}</span>`; return; }
   const q = S.mode === 'demo' ? 0 : S.outbox.length + Object.values(S.notes).filter(n => n._dirty && !n._queued).length;
-  t.innerHTML = `<button class="brand" data-go="home" aria-label="Home">${logoHtml()}<span>Hive-Notes</span></button><div class="sp"></div>
+  t.innerHTML = `<button class="brand" data-go="home" aria-label="Home">${logoHtml()}<span>Hive-Notes</span></button><span class="ver" title="App version">v${VERSION}</span><div class="sp"></div>
     ${S.mode === 'demo' ? '<span class="badge hide-sm">Demo mode</span>' : ''}
     <span class="badge ${S.online ? '' : 'off'}" title="${S.online ? 'Connected' : 'No connection – working offline'}">${S.online ? (S.syncing ? 'Syncing…' : 'Online') : 'Offline'}${q ? ' · ' + q + ' waiting' : ''}</span>
     <button class="iconbtn" data-act="menu" aria-label="Menu">☰</button>`;
@@ -1000,6 +1001,7 @@ function emailPreview(n, blob) {
 
 /* ---------- library (PC editable table) ---------- */
 let LIB = null; // working copy
+const libFilled = x => !!(x.name.trim() || (x.desc || '').trim() || (x.control || '').trim());
 function viewLibrary(app) {
   const canEditLib = isAdmin() && WIDE();
   if (!LIB) LIB = clone(S.cfg.library);
@@ -1013,16 +1015,15 @@ function viewLibrary(app) {
    <select id="libl"><option value="">All locations</option>${['Field', 'Lab', 'Office'].map(l => `<option ${fl === l ? 'selected' : ''}>${l}</option>`).join('')}</select>
    <span class="muted small">${rows.length} of ${LIB.length}</span><span style="flex:1"></span>
    ${canEditLib ? `<button class="btn" data-act="libadd">+ Add row</button><button class="btn" data-go="docs">SOP / SWP links</button><button class="btn" data-act="libundo" ${dirty ? '' : 'disabled'}>Undo changes</button><button class="btn pri" data-act="libsave" ${dirty ? '' : 'disabled'}>Save library</button>` : ''}</div>
-  ${canEditLib ? `<div class="tblwrap"><table class="ed lib"><thead><tr><th style="min-width:170px">Activity / hazard</th><th style="min-width:112px">Type</th><th style="min-width:100px">Location</th><th style="min-width:260px">Hazard description</th><th style="min-width:110px">Responsibility</th><th>Risk</th><th style="min-width:260px">Control measures &amp; SOP/SWP</th><th>Residual</th><th>In use</th><th></th></tr></thead><tbody>
-   ${rows.map(([x, i]) => `<tr data-li="${i}"><td><textarea data-lk="name" rows="2">${esc(x.name)}</textarea></td>
+  ${canEditLib ? `<div class="tblwrap"><table class="ed lib"><thead><tr><th></th><th style="min-width:170px">Activity / hazard</th><th style="min-width:112px">Type</th><th style="min-width:100px">Location</th><th style="min-width:260px">Hazard description</th><th style="min-width:110px">Responsibility</th><th>Risk</th><th style="min-width:260px">Control measures &amp; SOP/SWP</th><th>Residual</th><th>In use</th></tr></thead><tbody>
+   ${rows.map(([x, i]) => `<tr data-li="${i}"><td><button class="btn sm warn" data-act="libdel" data-i="${i}" aria-label="Delete row" title="Delete row">✕</button></td><td><textarea data-lk="name" rows="2">${esc(x.name)}</textarea></td>
     <td><select data-lk="kind"><option ${x.kind === 'Activity' ? 'selected' : ''}>Activity</option><option ${x.kind === 'Hazard' ? 'selected' : ''}>Hazard</option></select></td>
     <td><select data-lk="loc">${['Field', 'Lab', 'Office'].map(l => `<option ${x.loc === l ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
     <td><textarea data-lk="desc" rows="3">${esc(x.desc)}</textarea></td><td><input type="text" data-lk="resp" value="${esc(x.resp)}"></td>
     <td>${riskBtn(x.risk, `data-act="librisk" data-i="${i}" data-k="risk"`)}</td>
     <td><textarea data-lk="control" rows="3">${esc(x.control)}</textarea><span data-ldocs="${i}">${docChips(x.control)}</span></td>
     <td>${riskBtn(x.residual, `data-act="librisk" data-i="${i}" data-k="residual"`)}</td>
-    <td><input type="checkbox" data-lk="active" ${x.active !== false ? 'checked' : ''} style="width:22px;height:22px" aria-label="In use"></td>
-    <td><button class="btn sm warn" data-act="libdel" data-i="${i}" aria-label="Delete">✕</button></td></tr>`).join('')}</tbody></table></div>`
+    <td><input type="checkbox" data-lk="active" ${x.active !== false ? 'checked' : ''} style="width:22px;height:22px" aria-label="In use"></td></tr>`).join('')}</tbody></table></div>`
   : `<div class="list">${rows.map(([x]) => `<div class="card" style="margin:0"><div class="row" style="justify-content:space-between"><b>${esc(x.name)}</b><span class="row"><span class="chip">${esc(x.kind)} · ${esc(x.loc)}</span>${riskBtn(x.risk, 'disabled')}→${riskBtn(x.residual, 'disabled')}</span></div><div class="small">${esc(x.desc)}</div><div class="small muted">${esc(x.control)}</div>${docChips(x.control)}</div>`).join('')}</div>`}`;
   const keep = (id, k) => { const el = $('#' + id); el.oninput = el.onchange = e => { LS.set(k, e.target.value); const pos = e.target.selectionStart; viewLibrary(app); if (id === 'libq') { const i = $('#libq'); i.focus(); try { i.setSelectionRange(pos, pos); } catch (x) {} } }; };
   keep('libq', 'libq'); keep('libk', 'libk'); keep('libl', 'libl');
@@ -1242,9 +1243,9 @@ function viewTemplates(app) {
   app.innerHTML = `<button class="btn sm" data-go="admin">← Admin</button><h1>Templates</h1><p class="lead">Starter sets of rows for common kinds of work. “Load template” in a plan adds these rows.</p>
   <div class="toolbar"><select id="tsel">${TPL.map(t => `<option value="${esc(t.id)}" ${cur && t.id === cur.id ? 'selected' : ''}>${esc(t.name)} (${t.rows.length})</option>`).join('')}</select>
    <button class="btn" data-act="tnew">+ New template</button>${cur ? '<button class="btn" data-act="tren">Rename</button><button class="btn warn" data-act="tdel">Delete template</button>' : ''}<span style="flex:1"></span><button class="btn pri" data-act="tsave" ${dirty ? '' : 'disabled'}>Save templates</button></div>
-  ${cur ? `<div class="tblwrap"><table class="ed"><thead><tr><th style="min-width:160px">Work activity</th><th style="min-width:180px">Task involved</th><th style="min-width:200px">Specific hazard</th><th>Responsibility</th><th>Risk</th><th style="min-width:240px">Control measures</th><th>Residual</th><th></th></tr></thead><tbody>
-   ${cur.rows.map((r, i) => `<tr data-ti="${i}"><td><textarea data-tk="name" rows="2">${esc(r.name)}</textarea></td><td><textarea data-tk="task" rows="2">${esc(r.task)}</textarea></td><td><textarea data-tk="desc" rows="2">${esc(r.desc)}</textarea></td><td><input type="text" data-tk="resp" value="${esc(r.resp)}"></td>
-    <td>${riskBtn(r.risk, `data-act="trisk" data-i="${i}" data-k="risk"`)}</td><td><textarea data-tk="control" rows="2">${esc(r.control)}</textarea></td><td>${riskBtn(r.residual, `data-act="trisk" data-i="${i}" data-k="residual"`)}</td><td><button class="btn sm warn" data-act="trowdel" data-i="${i}" aria-label="Delete">✕</button></td></tr>`).join('')}
+  ${cur ? `<div class="tblwrap"><table class="ed"><thead><tr><th></th><th style="min-width:160px">Work activity</th><th style="min-width:180px">Task involved</th><th style="min-width:200px">Specific hazard</th><th>Responsibility</th><th>Risk</th><th style="min-width:240px">Control measures</th><th>Residual</th></tr></thead><tbody>
+   ${cur.rows.map((r, i) => `<tr data-ti="${i}"><td><button class="btn sm warn" data-act="trowdel" data-i="${i}" aria-label="Delete row" title="Delete row">✕</button></td><td><textarea data-tk="name" rows="2">${esc(r.name)}</textarea></td><td><textarea data-tk="task" rows="2">${esc(r.task)}</textarea></td><td><textarea data-tk="desc" rows="2">${esc(r.desc)}</textarea></td><td><input type="text" data-tk="resp" value="${esc(r.resp)}"></td>
+    <td>${riskBtn(r.risk, `data-act="trisk" data-i="${i}" data-k="risk"`)}</td><td><textarea data-tk="control" rows="2">${esc(r.control)}</textarea></td><td>${riskBtn(r.residual, `data-act="trisk" data-i="${i}" data-k="residual"`)}</td></tr>`).join('')}
    </tbody></table></div><p><button class="btn" data-act="trowadd">+ Add row</button></p>` : '<div class="empty">No templates.</div>'}`;
   $('#tsel').onchange = e => go('templates', e.target.value, true);
   $$('textarea', app).forEach(autoGrow);
@@ -1374,10 +1375,11 @@ document.addEventListener('click', async e => {
     case 'delplan': if (await ask('Delete plan?', 'This deletes the plan for everyone. It can’t be undone.', 'Delete', 1)) { if (S.mode === 'demo' || P._local) delete S.notes[P.id]; else { P._deleted = true; } S.outbox = S.outbox.filter(o => o.id !== P.id); await DB.set(key('outbox'), S.outbox); await saveNotes(); queueSync(200); go('list', null, true); } break;
     // library
     case 'libadd': LIB.unshift({id: 'L' + uid().slice(0, 8), name: '', kind: 'Activity', loc: 'Field', desc: '', resp: 'Employee', risk: '', control: '', residual: '', active: true}); LS.set('libq', ''); viewLibrary($('#app')); $('[data-li="0"] textarea').focus(); break;
-    case 'libdel': if (await ask('Delete row?', `Delete “${LIB[i].name}” from the library? Plans that already use it keep their copy. (Untick “In use” instead to hide it without deleting.)`, 'Delete', 1)) { LIB.splice(i, 1); viewLibrary($('#app')); } break;
+    case 'libdel': if (!libFilled(LIB[i])) { LIB.splice(i, 1); viewLibrary($('#app')); $$('[data-act=libsave],[data-act=libundo]').forEach(b => b.disabled = JSON.stringify(LIB) === JSON.stringify(S.cfg.library)); break; } if (await ask('Delete row?', `Delete “${LIB[i].name}” from the library? Plans that already use it keep their copy. (Untick “In use” instead to hide it without deleting.)`, 'Delete', 1)) { LIB.splice(i, 1); viewLibrary($('#app')); } break;
     case 'librisk': pickCode(normCode(LIB[i][a.dataset.k]), a.dataset.k === 'risk' ? 'Risk level' : 'Residual risk', c => { LIB[i][a.dataset.k] = c; viewLibrary($('#app')); }); break;
     case 'libundo': LIB = clone(S.cfg.library); viewLibrary($('#app')); break;
-    case 'libsave': { const bad = LIB.filter(x => !x.name.trim()); if (bad.length) { toast('Every row needs an activity or hazard name.'); break; } try { await saveCfg('library', LIB); toast('Library saved – everyone gets it on their next sync.'); viewLibrary($('#app')); } catch (x) {} break; }
+    case 'libsave': { const blank = LIB.length; LIB = LIB.filter(libFilled); const dropped = blank - LIB.length;
+      const bad = LIB.filter(x => !x.name.trim()); if (bad.length) { viewLibrary($('#app')); toast(`${bad.length} row${bad.length > 1 ? 's have' : ' has'} no activity or hazard name – fill it in or delete the row (✕ on the left).`); const r = $(`[data-li="${LIB.indexOf(bad[0])}"] textarea`); if (r) { r.focus(); r.scrollIntoView({block: 'center'}); } break; } try { await saveCfg('library', LIB); toast(`Library saved${dropped ? ` (${dropped} blank row${dropped > 1 ? 's' : ''} removed)` : ''} – everyone gets it on their next sync.`); viewLibrary($('#app')); } catch (x) {} break; }
     // docs
     case 'docadd': REG.unshift(normReg({type: 'SWP', number: ''})); LS.set('docq', ''); LS.set('docret', '1'); viewDocs($('#app')); $('[data-di="0"] [data-dk=number]').focus(); break;
     case 'docdel': if (await ask('Delete document?', `Remove ${REG[i].code || 'this row'} from the list${REG[i].file ? ' and delete its file' : ''}? Plans that name it will show it without a link. (Setting Status to Retired keeps it for old plans.)`, 'Delete', 1)) { const f = REG[i].file; REG.splice(i, 1); if (await saveRegister('Deleted') && f) { try { await B().removeDoc(f.path); } catch (x) {} } } break;
@@ -1395,7 +1397,7 @@ document.addEventListener('click', async e => {
     case 'trowadd': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; cur.rows.push({name: '', task: '', desc: '', resp: 'Employee', risk: '', control: '', residual: ''}); viewTemplates($('#app')); break; }
     case 'trowdel': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; cur.rows.splice(i, 1); viewTemplates($('#app')); break; }
     case 'trisk': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; pickCode(normCode(cur.rows[i][a.dataset.k]), a.dataset.k === 'risk' ? 'Risk level' : 'Residual risk', c => { cur.rows[i][a.dataset.k] = c; viewTemplates($('#app')); }); break; }
-    case 'tsave': try { await saveCfg('templates', TPL); toast('Templates saved'); viewTemplates($('#app')); } catch (x) {} break;
+    case 'tsave': TPL.forEach(t => { t.rows = t.rows.filter(r => (r.name || '').trim() || (r.task || '').trim() || (r.desc || '').trim() || (r.control || '').trim()); }); try { await saveCfg('templates', TPL); toast('Templates saved'); viewTemplates($('#app')); } catch (x) {} break;
     // emergency
     case 'emadd': EM.communities.push({id: 'C' + uid().slice(0, 8), city: '', prov: 'NS', v: {}}); viewEmergency($('#app')); break;
     case 'emdel': if (await ask('Delete community?', `Delete ${EM.communities[i].city || 'this row'}?`, 'Delete', 1)) { EM.communities.splice(i, 1); viewEmergency($('#app')); $('[data-act=emsave]').disabled = false; } break;
