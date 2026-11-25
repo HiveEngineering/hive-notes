@@ -1,14 +1,18 @@
 {
+  "id": "./",
   "name": "Hive-Notes",
   "short_name": "Hive-Notes",
   "description": "Hive safety plans, hazard assessments and site notes – online or offline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f9fb",
+  "orientation": "any",
+  "background_color": "#00ADEF",
   "theme_color": "#00ADEF",
   "icons": [
-    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
   ]
 }

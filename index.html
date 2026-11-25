@@ -6,8 +6,13 @@
 <meta name="theme-color" content="#00ADEF">
 <title>Hive-Notes</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hive-Notes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -197,7 +202,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.5';
+const VERSION = '0.3.6';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -488,13 +493,34 @@ function viewLogin(app) {
   <label class="f" style="margin-top:10px">Password<input type="password" id="lp" autocomplete="current-password" ${S.mode === 'demo' ? '' : 'required'}></label>
   <p class="err" id="le"></p><button class="btn pri" style="width:100%">Sign in</button></form>
   ${S.mode === 'live' ? '<p style="text-align:center"><button class="btn sm" id="forgot" type="button">Forgot password?</button></p>' : ''}
-  <p class="muted small" style="text-align:center">Version ${VERSION}</p></div>`;
+  <p style="text-align:center;margin-top:14px" id="instslot">${installBtn('btn')}</p><p class="muted small" style="text-align:center">Version ${VERSION}</p></div>`;
   $('#lf').onsubmit = async e => {
     e.preventDefault(); const u = $('#lu').value, p = $('#lp').value; $('#le').textContent = '';
     try { S.me = await B().signIn(u, p); LS.set('lastUser', u.trim()); await afterLogin(); }
     catch (err) { $('#le').textContent = err.message || String(err); }
   };
   const f = $('#forgot'); if (f) f.onclick = async () => { const u = $('#lu').value.trim(); if (!u) { $('#le').textContent = 'Type your user name first.'; return; } try { await Live.reset(u); toast('A password reset link was emailed to you.'); } catch (err) { $('#le').textContent = err.message; } };
+}
+/* ---------- install as an app (shortcut on the phone home screen or PC desktop) ---------- */
+let INSTALL_EVT = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL_EVT = e; const slot = document.getElementById('instslot'); if (slot) slot.innerHTML = installBtn('btn'); });
+window.addEventListener('appinstalled', () => { INSTALL_EVT = null; toast('Hive-Notes is installed – open it from your home screen or desktop.', 5000); });
+const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installBtn = cls => isInstalled() || (S.mode === 'demo' && !INSTALL_EVT) ? '' : `<button class="${cls}" data-act="install">📲 Install Hive-Notes as an app</button>`; // demo = the preview page, which can't be installed
+async function installApp() {
+  if (INSTALL_EVT) { INSTALL_EVT.prompt(); const r = await INSTALL_EVT.userChoice.catch(() => null); if (r && r.outcome === 'accepted') INSTALL_EVT = null; return; }
+  const ios = isIOS(), android = /Android/i.test(navigator.userAgent), safariMac = /Macintosh/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome|Edg/.test(navigator.userAgent), firefox = /Firefox/.test(navigator.userAgent);
+  const steps = ios ? ['Open this page in <b>Safari</b> (the blue compass).', 'Tap the <b>Share</b> button (square with an arrow) at the bottom or top of the screen.', 'Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.', 'Open Hive-Notes from the new icon on your home screen.']
+    : android ? ['Open this page in <b>Chrome</b>.', 'Tap the <b>⋮</b> menu at the top right.', 'Tap <b>Add to Home screen</b> (or <b>Install app</b>), then <b>Install</b>.', 'Open Hive-Notes from the new icon.']
+    : safariMac ? ['In Safari, choose <b>File → Add to Dock</b>.', 'Open Hive-Notes from the Dock.']
+    : firefox ? ['Firefox can’t install apps. Open this page in <b>Edge</b> or <b>Chrome</b> and use their install button.']
+    : ['In <b>Edge</b>: click <b>⋯</b> (top right) → <b>Apps</b> → <b>Install this site as an app</b>.', 'In <b>Chrome</b>: click the install icon at the right end of the address bar (a screen with a down arrow), or <b>⋮ → Cast, save and share → Install page as app</b>.', 'Hive-Notes then opens in its own window and gets a Start menu / desktop shortcut. Right-click its taskbar icon to pin it.'];
+  const m = modal(`<div class="mhead"><h2>Install Hive-Notes</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <div class="row" style="gap:14px;align-items:center;margin-bottom:8px"><img src="icon-192.png" alt="" style="width:64px;height:64px;border-radius:14px"><p style="margin:0">Adds a Hive-Notes icon to your ${ios || android ? 'home screen' : 'desktop and Start menu'}. It opens full-screen like an app and works without a signal.</p></div>
+   <ol>${steps.map(x => `<li style="margin:6px 0">${x}</li>`).join('')}</ol>
+   <div class="row" style="justify-content:flex-end"><button class="btn pri" data-x>OK</button></div>`, 'narrow');
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
 }
 function viewSetPassword(app) {
   app.innerHTML = `<div class="login"><div class="logo">${logoHtml()}</div><h1>Set your password</h1><p class="lead">Welcome${S.me.full_name ? ', ' + esc(S.me.full_name) : ''}. Choose a password for Hive-Notes. Your user name is <b>${esc(S.me.username || '')}</b>.</p>
@@ -1377,7 +1403,7 @@ function openMenu() {
    <div class="list" style="margin-top:12px"><button class="item" data-go="home">Sections</button><button class="item" data-go="list">Safety plans</button><button class="item" data-go="library">Activities &amp; hazards library</button><button class="item" data-go="docs">SOP / SWP documents</button>${isAdmin() ? '<button class="item" data-go="admin">Admin</button>' : ''}
    ${S.mode === 'live' ? `<label class="item chk" style="cursor:pointer"><input type="checkbox" data-act="docsoffline" ${LS.get('docsOffline') === '0' ? '' : 'checked'}><span class="grow">Keep SOPs / SWPs on this device for offline use</span><span class="muted small">${docOfflineCount()}</span></label><button class="item" data-act="syncnow">Sync now<span class="grow"></span><span class="muted small">${S.lastSync ? 'last ' + fmtDT(S.lastSync) : ''}</span></button><button class="item" data-act="chpw">Change password</button>` : ''}
    ${S.mode === 'demo' ? '<button class="item" data-act="demoreset">Reset demo data</button>' : ''}
-   <button class="item" data-act="signout">Sign out</button></div><p class="muted small">Hive-Notes ${VERSION}${S.mode === 'demo' ? ' · demo mode' : ''}</p>`, 'narrow');
+   ${installBtn('item')}<button class="item" data-act="signout">Sign out</button></div><p class="muted small">Hive-Notes ${VERSION}${S.mode === 'demo' ? ' · demo mode' : ''}</p>`, 'narrow');
   m.addEventListener('click', e => { if (e.target.closest('[data-x]') || e.target.closest('[data-go]')) closeModal(); });
   const va = $('#va', m); if (va) va.onchange = async () => { LS.set('demoUser', va.value); S.me = S.staff.find(s => s.id === va.value); closeModal(); LIB = REG = TPL = EM = null; go('home', null, true); };
 }
@@ -1394,6 +1420,7 @@ document.addEventListener('click', async e => {
   const act = a.dataset.act, i = a.dataset.i != null ? +a.dataset.i : null;
   switch (act) {
     case 'menu': openMenu(); break;
+    case 'install': closeModal(); installApp(); break;
     case 'signout': closeModal(); await B().signOut(); S.me = null; P = null; render(); break;
     case 'syncnow': closeModal(); sync(true); break;
     case 'chpw': closeModal(); S.needPassword = true; render(); break;

@@ -1,7 +1,7 @@
 // Hive-Notes service worker: the page is network-first (so GitHub updates show on the next open),
 // libraries and icons are cache-first, and everything works offline once loaded.
-const CACHE = 'hivenotes-0.3.5';
-const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
+const CACHE = 'hivenotes-0.3.6';
+const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-192.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png',
   'vendor/jspdf.umd.min.js', 'vendor/jspdf.plugin.autotable.min.js', 'vendor/supabase.js', 'vendor/pdf-lib.min.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
