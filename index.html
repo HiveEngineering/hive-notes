@@ -196,7 +196,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1191,9 +1191,11 @@ function parsePasted(text) {
 function openImport() {
   const m = modal(`<div class="mhead"><h2>Import the SOP / SWP list</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
    <p>In the spreadsheet, select the whole table <b>including the header row</b>, copy it (Ctrl+C), then paste it here (Ctrl+V). Columns used: Type, Number, Title, Revision, Revision date, Status, File name, Old number.</p>
-   <textarea id="imp" rows="8" placeholder="Paste here" style="font-family:ui-monospace,monospace;font-size:13px"></textarea><div id="impres"></div>
+   <textarea id="imp" rows="8" placeholder="Paste here" style="font-family:ui-monospace,monospace;font-size:13px"></textarea>
+   <label class="chk" style="margin-top:8px"><input type="checkbox" id="impprune"> <span><b>Replace the whole list</b> – remove every document in the app that isn’t in what I paste</span></label><div id="impres"></div>
    <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" data-x>Cancel</button><button class="btn pri" id="impgo" disabled>Apply</button></div>`);
   let plan = null;
+  $('#impprune', m).onchange = () => $('#imp', m).oninput();
   $('#imp', m).oninput = () => {
     const r = parsePasted($('#imp', m).value), out = $('#impres', m); plan = null; $('#impgo', m).disabled = true;
     if (r.error) { out.innerHTML = `<p class="err">${esc(r.error)}</p>`; return; }
@@ -1203,10 +1205,11 @@ function openImport() {
     const libHits = S.cfg.library.filter(x => renumberText(x.control, map) !== x.control).length, tplHits = S.cfg.templates.reduce((a, t) => a + t.rows.filter(x => renumberText(x.control, map) !== x.control).length, 0);
     const isNew = r.rows.filter(x => !cur[x.code] && !(x.old && cur[x.old])).length, ren = Object.keys(map).length, ret = r.rows.filter(x => x.status === 'Retired').length;
     const listed = new Set([...r.rows.map(x => x.code), ...r.rows.map(x => x.old).filter(Boolean)]), notIn = REG.filter(x => x.code.trim() && !listed.has(x.code));
-    plan = {rows: r.rows, map};
+    const prune = $('#impprune', m).checked, notInFiles = notIn.filter(x => x.file).length;
+    plan = {rows: r.rows, map, prune};
     out.innerHTML = `<div class="band small"><b>${r.rows.length} documents</b> · ${isNew} new · ${r.rows.length - isNew} updated · ${ret} retired<br>
       ${ren ? `${ren} renumbered (${esc(Object.entries(map).slice(0, 4).map(([a, b]) => a + ' → ' + b).join(', '))}${ren > 4 ? ', …' : ''}). This rewrites those numbers in <b>${libHits} library rows</b> and <b>${tplHits} template rows</b>. Plans already made keep their wording.` : 'No numbers change.'}
-      ${notIn.length ? `<br>${notIn.length} documents in the app aren’t in your list (${esc(notIn.slice(0, 5).map(x => x.code).join(', '))}${notIn.length > 5 ? ', …' : ''}). They stay as they are; delete or retire them on the list if they’re gone.` : ''}
+      ${notIn.length ? (prune ? `<br><b>${notIn.length} documents will be removed</b> because they aren’t in your list (${esc(notIn.slice(0, 5).map(x => x.code).join(', '))}${notIn.length > 5 ? ', …' : ''})${notInFiles ? `, <b>${notInFiles} of them with an uploaded PDF</b>` : ''}. Library rows that still name them show the number as plain text until you change them.` : `<br>${notIn.length} documents in the app aren’t in your list (${esc(notIn.slice(0, 5).map(x => x.code).join(', '))}${notIn.length > 5 ? ', …' : ''}). They stay as they are – tick “Replace the whole list” to remove them.`) : ''}
       <br>Files already uploaded stay with their document (also when renumbered). Upload new PDFs afterwards with “Upload PDFs…”.</div>`;
     $('#impgo', m).disabled = false;
   };
@@ -1216,6 +1219,7 @@ function openImport() {
     if (S.mode === 'live' && !S.online) { toast('Importing needs a connection.'); return; }
     const byCode = Object.fromEntries(REG.map(x => [x.code, x]));
     plan.rows.forEach(x => { const base = byCode[x.old] || byCode[x.code] || {}; if (x.old && x.old !== x.code && byCode[x.old]) delete byCode[x.old]; byCode[x.code] = normReg({...base, ...x, file: base.file || null, url: base.url || '', fileName: x.fileName || base.fileName || ''}); });
+    if (plan.prune) { const keep = new Set(plan.rows.map(x => x.code)); Object.keys(byCode).forEach(k => { if (k.trim() && !keep.has(k)) delete byCode[k]; }); }
     REG = Object.values(byCode).sort(docSort);
     const ren = Object.keys(plan.map).length;
     try {
@@ -1225,7 +1229,7 @@ function openImport() {
         await saveCfg('library', lib); await saveCfg('templates', tpl); LIB = TPL = null;
       }
     } catch (x) { return; }
-    closeModal(); await saveRegister(`List imported${ren ? ` and ${ren} numbers updated in the library and templates` : ''}.`);
+    closeModal(); await saveRegister(`List imported${plan.prune ? ' (whole list replaced)' : ''}${ren ? ` and ${ren} numbers updated in the library and templates` : ''}.`);
   });
 }
 
