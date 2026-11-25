@@ -197,7 +197,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.3';
+const VERSION = '0.3.4';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -377,7 +377,7 @@ const Live = {
     ]);
     if (st.error) throw st.error; if (cf.error) throw cf.error; if (nt.error) throw nt.error;
     S.staff = st.data; await DB.set('live:staff', S.staff);
-    if (cf.data.length) { cf.data.forEach(r => { S.cfg[r.key] = r.data; }); await DB.set('live:cfg', S.cfg); }
+    if (cf.data.length) { cf.data.forEach(r => { S.cfg[r.key] = r.data; }); S.cfg.texts = {...DEFAULT_TEXTS, ...(S.cfg.texts || {})}; S.cfg.register = (S.cfg.register || []).map(normReg); await DB.set('live:cfg', S.cfg); }
     else if (isAdmin()) { for (const k of Object.keys(S.cfg)) await this.saveConfig(k, S.cfg[k]); }
     const seen = new Set();
     nt.data.forEach(r => { seen.add(r.id); const l = S.notes[r.id];
@@ -668,7 +668,7 @@ function stepHazards(n, ed) {
   ${signBlock('sign2', 'Page 2 sign-off', T.signP2, d.sign2, ed)}
   <div class="sticky-actions"><button class="btn" data-step="1">← Project info</button><button class="btn pri" data-step="3">Next: ${ed ? 'review &amp; submit' : 'summary'} →</button></div>`;
 }
-const siteQs = () => String(S.cfg.texts.siteQuestions || '').split('\n').map(x => x.trim()).filter(Boolean);
+const siteQs = () => { const q = String(S.cfg.texts.siteQuestions || '').split('\n').map(x => x.trim()).filter(Boolean); return q.length ? q : DEFAULT_TEXTS.siteQuestions.split('\n'); }; // mandatory: never empty
 // Drafts follow the current wording; submitted plans keep the questions they were answered with.
 function planQs(d, ed) {
   const stored = d.checks || [];
@@ -873,7 +873,33 @@ function pdfLogo(doc, x, y, h) {
   [[0, 0], [1, 0], [0.5, 0.866]].forEach(([dx, dy], i) => { const cx = x + r + dx * r * 1.9, cy = y + r + dy * r * 1.9; const pts = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 180 * (60 * k - 30); pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } doc.setFillColor(...cols[i]); doc.setDrawColor(255); doc.setLineWidth(0.8); doc.lines(pts.slice(1).map((p, j) => [p[0] - pts[j][0], p[1] - pts[j][1]]), pts[0][0], pts[0][1], [1, 1], 'FD', true); });
   doc.setTextColor(88, 89, 91); doc.setFont('helvetica', 'bold'); doc.setFontSize(h * 0.62); doc.text('hive', x + r * 4.2, y + h * 0.62); doc.setFontSize(h * 0.2); doc.text('ENGINEERING', x + r * 4.25, y + h * 0.9);
 }
-async function buildPdf(n) {
+/* plan PDF + the SOP / SWP documents named in its control measures */
+function planDocs(n) {
+  const m = docMap(), seen = new Map();
+  (n.data.rows || []).forEach(r => docCodes(r.control || '').forEach(c => { const d = m[c], k = d ? d.code : c; if (!seen.has(k)) seen.set(k, d || {code: c, missing: true}); }));
+  return [...seen.values()].sort(docSort);
+}
+async function ensurePdfLib() {
+  if (window.PDFLib) return;
+  try { await loadScript('vendor/pdf-lib.min.js'); } catch (e) { await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'); }
+}
+async function planPdf(n) {
+  const att = planDocs(n).map(d => ({d}));
+  if (att.some(a => a.d.file)) { try { await ensurePdfLib(); } catch (e) { att.forEach(a => { if (a.d.file) a.why = 'Couldn’t be added (PDF tool didn’t load)'; }); } }
+  for (const a of att) {
+    if (a.d.missing) { a.why = 'Not in the SOP / SWP list'; continue; }
+    if (!a.d.file) { a.why = 'No PDF uploaded yet'; continue; }
+    if (a.why) continue;
+    try { const blob = await getDocBlob(a.d); a.src = await PDFLib.PDFDocument.load(await blob.arrayBuffer(), {ignoreEncryption: true}); a.pages = a.src.getPageCount(); }
+    catch (e) { a.why = S.mode === 'live' && !S.online ? 'Not saved on this device and offline' : 'Couldn’t be added (file could not be read)'; }
+  }
+  const base = await buildPdf(n, att), ok = att.filter(a => a.src);
+  if (!ok.length) return base;
+  const out = await PDFLib.PDFDocument.load(await base.arrayBuffer());
+  for (const a of ok) (await out.copyPages(a.src, a.src.getPageIndices())).forEach(pg => out.addPage(pg));
+  return new Blob([await out.save()], {type: 'application/pdf'});
+}
+async function buildPdf(n, att = []) {
   const {jsPDF} = window.jspdf; const doc = new jsPDF({orientation: 'landscape', unit: 'pt', format: 'letter', compress: true});
   const d = n.data, T = S.cfg.texts, W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 36;
   const pm = staffById(n.pm), owner = staffById(n.owner);
@@ -946,7 +972,8 @@ async function buildPdf(n) {
     y = doc.lastAutoTable.finalY + 8;
   }
   const codes = [...new Set(d.rows.flatMap(r => docCodes(r.control)))].sort((a, b) => docSort({code: a}, {code: b})); const dm = docMap();
-  if (codes.length) {
+  if (codes.length && att.length) { y = para(`SOP / SWP documents: ${att.map(a => a.d.code).join(', ')} – listed after the sign-offs${att.some(a => a.src) ? ' and attached at the end of this PDF' : ''}.`, y + 4, {bold: 1}) + 4; }
+  else if (codes.length) {
     y = para('SOP / SWP documents referenced:', y + 4, {bold: 1});
     codes.forEach(k => { const x = dm[k]; if (y > H - 50) { doc.addPage(); y = 80; } doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); const label = docLabel(k, x), url = docLinkUrl(x); if (url) { doc.setTextColor(0, 114, 158); doc.textWithLink(label, M + 10, y, {url}); } else { doc.setTextColor(...navy); doc.text(label, M + 10, y); } y += 11; });
     y += 6;
@@ -969,6 +996,15 @@ async function buildPdf(n) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(110); doc.text(fmtDT(ph.at), x, y0 + ch + 23);
     });
   }
+  if (att.length) { // last plan page: which SOPs / SWPs follow
+    doc.addPage(); head('SOPs AND SWPs FOR THIS PLAN');
+    const here = doc.getNumberOfPages(); let at = here + 1;
+    const body = att.map(a => { const pg = a.src ? (a.pages > 1 ? `Attached – PDF pages ${at}–${at + a.pages - 1}` : `Attached – PDF page ${at}`) : a.why; if (a.src) at += a.pages; return [a.d.code, a.d.title || '', a.d.rev ? a.d.rev + (a.d.revDate ? ', ' + fmtD(a.d.revDate) : '') : '', pg]; });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...navy);
+    doc.text(att.some(a => a.src) ? 'The current versions of the documents named in the control measures are attached after this page.' : 'Documents named in the control measures:', M, 100);
+    doc.autoTable({startY: 110, margin: {left: M, right: M}, head: [['Document', 'Title', 'Revision', 'In this PDF']], body, theme: 'grid', styles: {fontSize: 9, cellPadding: 4, textColor: navy}, headStyles: {fillColor: [0, 173, 239], textColor: navy, fontStyle: 'bold'}, columnStyles: {0: {cellWidth: 80, fontStyle: 'bold'}, 2: {cellWidth: 110}, 3: {cellWidth: 190}},
+      didParseCell: c => { if (c.section === 'body' && c.column.index === 3 && !att[c.row.index].src) c.cell.styles.textColor = [190, 30, 30]; }});
+  }
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(110); doc.setFont('helvetica', 'normal'); doc.text(`${d.title || ''} – ${d.projectNo || ''} – Safety Plan · ${n.submitted_at ? 'Submitted ' + fmtDT(n.submitted_at) : 'Draft ' + fmtDT(new Date().toISOString())}`, M, H - 18); doc.text(`Page ${i} of ${pages}`, W - M, H - 18, {align: 'right'}); }
   return doc.output('blob');
@@ -981,7 +1017,7 @@ async function submitPlan() {
   if (!await ask('Submit safety plan?', `The plan will be emailed to ${pm.full_name} (${pm.email}) as a PDF, with a copy to you. You won’t be able to edit it unless you reopen it.`, 'Submit')) return;
   P.data.checks = planQs(P.data, true);
   P.status = 'submitted'; P.submitted_at = new Date().toISOString(); P.data.submittedBy = S.me.id; P.email_error = null; touch();
-  const blob = await buildPdf(P);
+  toast('Building PDF…', 2500); const blob = await planPdf(P);
   if (S.mode === 'demo') { P._dirty = false; await saveNotes(); render(); emailPreview(P, blob); return; }
   P._queued = true; S.outbox = S.outbox.filter(o => o.id !== P.id); S.outbox.push({id: P.id, pdf: blob});
   await DB.set(key('outbox'), S.outbox); await saveNotes(); render();
@@ -1366,8 +1402,8 @@ document.addEventListener('click', async e => {
     case 'addcrew': P.data.crew = P.data.crew || []; P.data.crew.push({name: '', sig: null, at: null}); touch(); render(); break;
     case 'delcrew': P.data.crew.splice(i, 1); touch(); render(); break;
     case 'savetpl': { const name = await promptText('Save as template', 'Template name', P.data.template || P.data.title); if (!name) break; const t = {id: 'T' + uid().slice(0, 8), name, rows: P.data.rows.map(r => ({name: r.name, task: r.task || '', desc: r.desc, resp: r.resp, risk: r.risk, control: r.control, residual: r.residual}))}; try { await saveCfg('templates', [...S.cfg.templates, t]); toast('Template saved'); } catch (x) {} break; }
-    case 'preview': { toast('Building PDF…', 1500); const b = await buildPdf(P); saveFile(b, pdfName(P)); break; }
-    case 'pdf': { let b; try { b = S.mode === 'live' && P.pdf_path && S.online && !P._queued ? await Live.pdf(P) : await buildPdf(P); } catch (x) { b = await buildPdf(P); } saveFile(b, pdfName(P)); break; }
+    case 'preview': { toast('Building PDF…', 2500); const b = await planPdf(P); saveFile(b, pdfName(P)); break; }
+    case 'pdf': { let b; try { b = S.mode === 'live' && P.pdf_path && S.online && !P._queued ? await Live.pdf(P) : await planPdf(P); } catch (x) { b = await planPdf(P); } saveFile(b, pdfName(P)); break; }
     case 'submit': submitPlan(); break;
     case 'reviewed': P.status = 'reviewed'; P.reviewed_at = new Date().toISOString(); P.reviewed_by = S.me.id; P._dirty = true; await saveNotes(); queueSync(200); render(); toast('Marked reviewed'); break;
     case 'reopen': if (await ask('Reopen to edit?', 'The plan goes back to draft. Submit it again when you are done, and the PM gets the new version.', 'Reopen')) { P.status = 'draft'; touch(); render(); } break;
