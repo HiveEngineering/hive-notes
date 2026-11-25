@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#00ADEF">
+<title>Hive-Notes</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: plain, calm field tool — a safety form that is quick to fill on a phone and complete on a PC
+   IDEA: the paper Health & Safety Plan, rebuilt as a two-page clipboard with a sign-off at the foot of each page
+   PICTURE: the hazard table itself, with risk codes coloured by the Hive risk matrix
+   COLOUR and TYPE: Hive main blue #00ADEF bands with navy text, light blue #E5F8FF zones, green/yellow/red risk chips; Figtree
+   LAYOUT: top bar, page content up to 1240px, cards on phones, table rows on PC */
+:root{color-scheme:light dark;
+--blue:#00ADEF;--navy:#0F2A36;--link:light-dark(#00729E,#5cc8f2);--light:light-dark(#E5F8FF,#0f2a36);
+--green:#C2D64A;--yellow:#FFDF00;--grey:#58595B;
+--bg:light-dark(#f6f9fb,#0b1820);--card:light-dark(#fff,#11232d);--ink:light-dark(#14232b,#e6f0f4);--muted:light-dark(#5b6b73,#9fb3bc);
+--line:light-dark(#d5e2e8,#24414f);--field:light-dark(#fff,#0c1c24);
+--ext:#C62828;--high:#F57C00;--med:#FFDF00;--low:#C2D64A}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Figtree,system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:clip;padding-bottom:env(safe-area-inset-bottom)}
+a{color:var(--link)}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:20;background:var(--blue);color:var(--navy);padding:calc(6px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 6px max(12px,env(safe-area-inset-left));display:flex;align-items:center;gap:10px;min-height:56px;box-shadow:0 1px 0 #0003}
+.top .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:19px;background:none;border:0;padding:4px;cursor:pointer;color:var(--navy)}
+.top .brand svg,.top .brand img{height:32px;width:auto}
+.top .sp{flex:1}
+.badge{font-size:13px;font-weight:600;padding:4px 10px;border-radius:99px;background:#ffffffcc;color:var(--navy);white-space:nowrap}
+.badge.off{background:var(--yellow)}
+.iconbtn{min-width:44px;min-height:44px;border:0;border-radius:10px;background:#ffffff55;color:var(--navy);font-weight:700;cursor:pointer;padding:0 10px}
+.iconbtn:hover{background:#ffffff88}
+main{max-width:1240px;margin:0 auto;padding:16px max(12px,env(safe-area-inset-left)) 80px}
+h1{font-size:clamp(24px,4vw,32px);line-height:1.1;margin:8px 0 6px;text-wrap:balance}
+h2{font-size:20px;margin:22px 0 8px}
+h3{font-size:17px;margin:16px 0 6px}
+p.lead{color:var(--muted);margin:0 0 16px}
+.muted{color:var(--muted)}.small{font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.band{background:var(--light);border-radius:14px;padding:14px 16px;margin:12px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px 18px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px 18px}
+label.f{display:block;font-size:14px;font-weight:600;color:var(--muted)}
+label.f>span.req{color:var(--ext)}
+input[type=text],input[type=email],input[type=password],input[type=date],input[type=url],input[type=search],select,textarea{width:100%;min-height:44px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field);font-size:16px;margin-top:4px}
+textarea{resize:vertical;min-height:70px;line-height:1.4}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:1px}
+input:disabled,textarea:disabled,select:disabled{opacity:.85;background:transparent}
+.btn{min-height:44px;padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--blue)}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:var(--navy)}
+.btn.pri:hover{filter:brightness(1.06)}
+.btn.go{background:var(--green);border-color:var(--green);color:var(--navy)}
+.btn.warn{color:var(--ext)}
+.btn.sm{min-height:36px;padding:5px 11px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.chk{display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer}
+.chk input{width:22px;height:22px;accent-color:var(--blue)}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--light);color:var(--ink);white-space:nowrap}
+.chip.draft{background:#e0e6ea;color:#33434b}.chip.submitted{background:var(--blue);color:var(--navy)}.chip.queued{background:var(--yellow);color:var(--navy)}.chip.reviewed{background:var(--green);color:var(--navy)}
+.risk{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:84px;min-height:40px;padding:4px 10px;border-radius:9px;border:1px dashed var(--line);font-weight:700;cursor:pointer;background:var(--field);color:var(--ink);white-space:nowrap}
+.risk.Ext{background:var(--ext);color:#fff;border-color:var(--ext)}
+.risk.High{background:var(--high);color:var(--navy);border-color:var(--high)}
+.risk.Med{background:var(--med);color:var(--navy);border-color:var(--med)}
+.risk.Low{background:var(--low);color:var(--navy);border-color:var(--low)}
+.risk small{font-weight:600;font-size:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:14px;margin:14px 0}
+.tile{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;cursor:pointer;min-height:140px}
+.tile:hover{border-color:var(--blue)}
+.tile b{font-size:19px}.tile .ic{width:46px;height:46px;border-radius:12px;background:var(--light);display:grid;place-items:center}
+.tile.soon{cursor:default;opacity:.65}
+.secs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0}
+@media(max-width:600px){.secs{grid-template-columns:1fr}}
+.tile.sec{min-height:170px;border-top:6px solid var(--blue)}
+.tile.sec b{font-size:22px}
+.tile.sec[data-sec=safety]{border-top-color:var(--green)}
+.tile.sec.soon{border-top-color:var(--line)}
+.tile .chip{align-self:flex-start}
+.tile.soon:hover{border-color:var(--line)}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:8px 0 4px;padding-bottom:2px}
+.tab{flex:none;min-height:44px;padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:600;cursor:pointer;color:var(--ink)}
+.tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+:root[data-theme=dark] .tab.on{background:var(--blue);color:var(--navy)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;width:100%;color:var(--ink)}
+.item:hover{border-color:var(--blue)}
+.item .t{font-weight:700}.item .grow{flex:1}
+.empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
+/* hazard rows */
+.hz-head{display:none}
+.hz{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0;display:grid;gap:10px;grid-template-columns:1fr}
+.hz .num{font-weight:700;color:var(--muted);font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.hz .rk{display:flex;gap:16px;flex-wrap:wrap}
+.hz .rk>div{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;color:var(--muted)}
+.hz input.task{font-size:14px;min-height:36px;padding:6px 10px;margin-top:6px;color:var(--muted)}
+.docs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.docs a,.docs span{font-size:13px;font-weight:600;padding:2px 8px;border-radius:7px;background:var(--light);text-decoration:none}
+.docs span{color:var(--muted)}
+@media(min-width:960px){
+ .hz-head{display:grid;grid-template-columns:34px 1.1fr 1.6fr .8fr 104px 1.7fr 104px 44px;gap:8px;padding:6px 10px;font-size:13px;font-weight:700;color:var(--muted)}
+ .hz{grid-template-columns:34px 1.1fr 1.6fr .8fr 104px 1.7fr 104px 44px;gap:8px;padding:8px 10px;margin:6px 0;align-items:start;border-radius:10px}
+ .hz .num{flex-direction:column;gap:4px}
+ .hz label.f>.lbl{display:none}
+ .hz .rk{display:contents}
+ .hz .rk>div>.lbl{display:none}
+ .hz .more{grid-column:2/-1}
+}
+/* modal */
+.scrim{position:fixed;inset:0;background:#0008;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:700px){.scrim{align-items:center;padding:20px}}
+.modal{background:var(--card);color:var(--ink);width:100%;max-width:980px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.modal{border-radius:18px}}
+.modal.narrow{max-width:520px}
+.modal h2{margin-top:0}
+.mhead{display:flex;align-items:center;gap:10px;position:sticky;top:-18px;background:var(--card);padding:6px 0 10px;z-index:2}
+.mhead h2{flex:1;margin:0}
+.pick{display:grid;grid-template-columns:1fr;gap:16px}
+@media(min-width:760px){.pick{grid-template-columns:1fr 1fr}}
+.pick h3{display:flex;align-items:center;gap:8px}
+.pick .opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.opt{min-height:56px;border-radius:10px;border:2px solid transparent;padding:8px 10px;font-weight:700;font-size:14px;line-height:1.2;cursor:pointer;text-align:left;color:#fff}
+.opt.act{background:#0a3d8f}.opt.haz{background:#1f6b2a}
+.opt.sel{border-color:var(--yellow);box-shadow:0 0 0 2px var(--navy) inset}
+.opt.used{opacity:.55}
+.matrix{display:grid;grid-template-columns:minmax(78px,1.5fr) repeat(5,minmax(44px,1fr));gap:4px;font-size:13px}
+.matrix .h{line-height:1.2}.matrix .risk{min-width:0;padding:4px 2px;flex-direction:column;gap:0;line-height:1.1}
+@media(max-width:600px){.matrix{font-size:12px}.matrix .h{padding:4px 1px;font-size:10.5px;overflow-wrap:anywhere}}
+.matrix .h{font-weight:700;padding:6px;color:var(--muted)}
+.matrix button{min-height:52px;border:0;border-radius:8px;font-weight:700;cursor:pointer;font-size:15px}
+.matrix button.cur{outline:3px solid var(--navy);outline-offset:-3px}
+/* signature */
+.sign{border:2px solid var(--navy);border-radius:14px;padding:14px;margin:22px 0 8px;background:var(--card)}
+:root[data-theme=dark] .sign{border-color:var(--blue)}
+.sign h3{margin:0 0 4px}
+.pad{position:relative;width:100%;height:170px;border:1px dashed var(--muted);border-radius:10px;background:#fff;touch-action:none;margin-top:8px;overflow:hidden}
+.pad canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+.pad .line{position:absolute;left:16px;right:16px;bottom:38px;border-bottom:1px solid #9aa;pointer-events:none}
+.pad .hint{position:absolute;left:16px;bottom:12px;font-size:13px;color:#789;pointer-events:none}
+.signed img{max-height:110px;background:#fff;border-radius:8px;border:1px solid var(--line);padding:4px;max-width:100%}
+/* tables (PC editors) */
+.scroll{overflow-x:auto}
+table.ed{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+table.ed.lib{min-width:1280px}
+table.ed th{position:sticky;top:0;background:var(--light);text-align:left;padding:8px;font-size:13px;border-bottom:1px solid var(--line);z-index:1;white-space:nowrap}
+table.ed td{padding:4px;border-bottom:1px solid var(--line);vertical-align:top}
+table.ed td input,table.ed td select,table.ed td textarea{margin:0;font-size:14px;min-height:38px;padding:6px 8px}
+table.ed td textarea{min-height:60px}
+.tblwrap{max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0;position:sticky;top:56px;z-index:5;background:var(--bg);padding:8px 0}
+.toolbar input[type=search]{max-width:280px;margin:0}
+.toolbar select{width:auto;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:12px;z-index:80;max-width:92vw;box-shadow:0 6px 20px #0005}
+.steps{display:flex;gap:6px;margin:10px 0;overflow-x:auto}
+.steps button{flex:1 0 auto;min-height:48px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:700;cursor:pointer;padding:6px 12px;color:var(--ink)}
+.steps button.on{background:var(--blue);color:var(--navy);border-color:var(--blue)}
+.steps button .ok{color:#3c7d16}
+.check li{margin:4px 0}.check .no{color:var(--ext)}.check .yes{color:#3c7d16}
+.note{font-size:14px;color:var(--muted);white-space:pre-wrap}
+.callout{border-left:4px solid var(--ext);padding:8px 12px;background:light-dark(#fff4f4,#2a1416);border-radius:8px;font-weight:700;color:light-dark(#9b1c1c,#ffb4b4)}
+.login{max-width:420px;margin:7vh auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px}
+.login .logo{display:flex;justify-content:center;margin-bottom:10px}
+.login .logo svg,.login .logo img{height:64px;width:auto}
+.err{color:var(--ext);font-weight:600;font-size:14px}
+.sticky-actions{position:sticky;bottom:0;background:var(--bg);padding:10px 0;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;border-top:1px solid var(--line);margin-top:16px;z-index:4}
+details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;align-items:center}
+@media(max-width:600px){main{padding-top:10px}.top .brand span{display:none}.hide-sm{display:none!important}}
+@media(prefers-reduced-motion:no-preference){.modal{animation:up .18s ease-out}@keyframes up{from{transform:translateY(16px);opacity:.6}}}
+@media print{.top,.sticky-actions,.toolbar{display:none}}
+</style>
+</head>
+<body>
+<header class="top" id="top"></header>
+<main id="app"><p class="muted">Loading Hive-Notes…</p></main>
+<div id="layer"></div>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script id="seed" type="application/json">{"library":[{"id":"L000","name":"AAR: Mortar Bar Test","kind":"Activity","loc":"Lab","desc":"Sodium hydroxide contacting skin, cement powder in plastic state contacting skin, aggregate, tools or fingers getting caught in mixer while turned on, obstructions near work area","resp":"Employee","risk":"2D","control":"Follow SJP 1.48","residual":"4D","docTitle":"AAR: Quick AAR (Mortar Bar) Test","active":true},{"id":"L001","name":"AAR: Prism Test","kind":"Activity","loc":"Lab","desc":"Sodium hydroxide contacting skin or eyes, cement powder in plastic state contacting skin or eyes, aggregate, tools or fingers getting caught in mixer while turned on, stripping bars from molds on sharp corners and edges","resp":"Employee","risk":"2D","control":"Follow SJP 1.49","residual":"4D","docTitle":"AAR: Testing the Potential Expansivity of Aggregates","active":true},{"id":"L002","name":"Asbestos","kind":"Hazard","loc":"Field","desc":"Inhalation, contamination of clothes, tools, sampling equipment and surrounding areas","resp":"Employee","risk":"1C","control":"Follow SJP 1.29","residual":"4C","docTitle":"Working Around Asbestos","active":true},{"id":"L003","name":"Asphalt Coring","kind":"Activity","loc":"Field","desc":"Noise; snagging of loose clothing, jewelry and hair; binding equipment; motoring public and construction traffic; pinch points, wet surface (slippery), improper gas mix","resp":"Employee","risk":"2D","control":"Follow SJP 1.32","residual":"4D","docTitle":"Asphalt Coring with Electric or Gas Core Drills","active":true},{"id":"L004","name":"Assessing Roof Conditions","kind":"Activity","loc":"Field","desc":"Falling workers or objects","resp":"Employee","risk":"3D","control":"If on roof Keep 3 meters from unguarded edge with a slope of 3 in 12 or less - As Per OHSA Section 49(6)(a)","residual":"4E","docTitle":"","active":true},{"id":"L005","name":"Asphalt Sampling","kind":"Activity","loc":"Field","desc":"Clothing becoming entangled in asphalt mixing device, wearing polyester clothing that can melt, hot asphalt contacting skin, dropping hot samples, lifting heavy samples, working around hot equipment (baskets, ovens)","resp":"Employee","risk":"2D","control":"Follow SJP 1.19","residual":"4D","docTitle":"Asphalt Testing","active":true},{"id":"L006","name":"Breaking Concrete Cylinders","kind":"Activity","loc":"Lab","desc":"Dropping concrete cylinder on hand or foot","resp":"Employee","risk":"3D","control":"Follow SJP 1.14","residual":"4E","docTitle":"Breaking Concrete Cylinders","active":true},{"id":"L007","name":"Capping Concrete Cylinders","kind":"Activity","loc":"Lab","desc":"Electrical cables/cords laying on floor adjacent to concrete water bath, splashing of water bath solution in eyes","resp":"Employee","risk":"3D","control":"Follow SJP 1.15","residual":"4E","docTitle":"Capping Concrete Cylinders","active":true},{"id":"L008","name":"Cleaning Hardened Concrete From Equipment","kind":"Activity","loc":"Lab","desc":"Electrical cables/cords lying near solution in bath/tub, splashing vinegar in your eyes, slipping from cleaning solution on floor","resp":"Employee","risk":"3D","control":"Follow SJP 1.16","residual":"4E","docTitle":"Cleaning Hardened Concrete From Equipment","active":true},{"id":"L009","name":"Cleaning Solvents and Flammables","kind":"Hazard","loc":"Field","desc":"Flammable liquids, improper use and storage of chemicals, inhalation of fumes","resp":"Employee","risk":"3C","control":"Follow SWP 1.2","residual":"4D","docTitle":"Use of Cleaning Solvents and Flammables","active":true},{"id":"L010","name":"Clearing of Trees, Bushes or Branches","kind":"Activity","loc":"Field","desc":"Kickback from use of chain saw; falling trees or limbs; uneven terrain; noise; tick bites","resp":"Employee","risk":"1C","control":"Follow SJP 1.22","residual":"4C","docTitle":"Clearing of Trees, Bushes or Branches","active":true},{"id":"L011","name":"Compressed Air","kind":"Hazard","loc":"Field","desc":"Pressure build-up in lines","resp":"Employee","risk":"2D","control":"Follow SJP 1.3","residual":"4D","docTitle":"Use of Compressed Air","active":true},{"id":"L012","name":"Confined Space Entry","kind":"Hazard","loc":"Field","desc":"Presence of toxic liquids/gases/dust; lack of ventilation; lack of light; wet floors, ladders and walls; claustrophobia; noise, sharp projections, wires or other materials; oxygen depletion; lead contaminants; temperature changes","resp":"Employee","risk":"1C","control":"Follow SJP 1.10","residual":"3D","docTitle":"Entry into a Confined Space","active":true},{"id":"L013","name":"Coring Concrete","kind":"Activity","loc":"Field","desc":"Noise from core drilling; flying particles, falling cores, snagging of clothing, jewelry or hair in rotating core drill; power cords, binding equipment; traffic; overhead and underground services; unanchored drill","resp":"Employee","risk":"3C","control":"Follow SJP 1.31","residual":"4D","docTitle":"Coring Concrete","active":true},{"id":"L014","name":"Demolition Monitoring","kind":"Activity","loc":"Field","desc":"Excessive noise; floor openings; silica dust; structural failures; falling debris; compressed air; exposure to hazardous substances, underground and overhead services, unstable soil, traffic","resp":"Employee","risk":"1D","control":"Follow SWP 1.22","residual":"4D","docTitle":"Monitoring Demolition","active":true},{"id":"L015","name":"Domestic and Wild Animals","kind":"Hazard","loc":"Field","desc":"Animal bites (rabies); mauling; parasites; ticks","resp":"Employee","risk":"3D","control":"Follow SWP 1.30","residual":"4D","docTitle":"Working Around Domestic and Wild Animals","active":true},{"id":"L016","name":"Drilling Boreholes","kind":"Activity","loc":"Field","desc":"Contact with overhead/underground power lines; working near heavy machinery; noise","resp":"Contractor","risk":"2D","control":"Follow SJP 1.3","residual":"4D","docTitle":"Drilling Boreholes","active":true},{"id":"L017","name":"Drilling, Grinding and Cutting","kind":"Activity","loc":"Field","desc":"Inhalation of dust; exposure to noise; drills striking electric wires, gas lines, water lines or high pressure lines, loose clothing, long hair or jewelry getting caught in rotating components, gloves getting caught in drill bit","resp":"Employee","risk":"3D","control":"Follow SJP 1.23","residual":"4D","docTitle":"Drilling, Grinding and Cutting","active":true},{"id":"L018","name":"Electrical Isolation","kind":"Activity","loc":"Field","desc":"Short circuit, shock, circuits not de-energized, wet or damp environment, non-insulated tools and equipment, equipment damage, arc-flash","resp":"Employee","risk":"1D","control":"Follow SJP 1.26","residual":"3D","docTitle":"Electrical Isolation","active":true},{"id":"L019","name":"Extension Ladder use","kind":"Activity","loc":"Field","desc":"Falling workers or objects","resp":"Employee","risk":"2D","control":"Follow SWP 1.5","residual":"4D","docTitle":"Use of Extension Ladders","active":true},{"id":"L020","name":"Fire Extinguisher use","kind":"Activity","loc":"Field","desc":"Using incorrect fire extinguisher; not visible or accessible","resp":"Employee","risk":"3E","control":"Follow SWP 1.1","residual":"4E","docTitle":"Use of Fire Extinguishers","active":true},{"id":"L021","name":"Hazardous Materials","kind":"Hazard","loc":"Field","desc":"Ozone depleting substances (ODS); inhalation of asbestos fibers; lead dust; mould; VOCs; mercury; PCB's; lead; exposure to fungus and bacteria from bird or bat droppings; tripping/slipping; exposure to ammonia from cat urine; working at heights","resp":"Employee","risk":"1D","control":"Follow SJP 1.36","residual":"4C","docTitle":"Sampling Hazardous Materials","active":true},{"id":"L022","name":"Hazardous Spills","kind":"Hazard","loc":"Field","desc":"Chemicals contacting skin and eyes, inhalation of vapours","resp":"Employee","risk":"1E","control":"Follow SJP 1.20","residual":"4D","docTitle":"Cleaning up Hazardous Spills","active":true},{"id":"L023","name":"Heavy Equipment Lifting","kind":"Activity","loc":"Field","desc":"Failure of lifting equipment; overhead wires; hydraulic hose failure; equipment instability","resp":"","risk":"2D","control":"Follow SWP 1.21","residual":"4D","docTitle":"Heavy Equipment Lifting","active":true},{"id":"L024","name":"Hot or Cold Conditions","kind":"Hazard","loc":"Field","desc":"UV radiation exposure; radiant heat; inappropriate clothing; working long intervals in extreme temperatures; lack of water; lack of sunscreen; lack of shade","resp":"Employee","risk":"3C","control":"Follow SWP 1.31","residual":"4D","docTitle":"Working in Hot or Cold Conditions","active":true},{"id":"L025","name":"Hot Work Sites","kind":"Hazard","loc":"Field","desc":"Flammable material; fumes and dust; lack of ventilation; welders flash","resp":"Employee","risk":"1E","control":"Follow SWP 1.25","residual":"4D","docTitle":"Working in Hot Work Sites","active":true},{"id":"L026","name":"Hydro Blasting","kind":"Activity","loc":"Field","desc":"Insufficient lighting, high pressure water, working at heights","resp":"","risk":"2D","control":"Follow SWP 1.20","residual":"4D","docTitle":"Use of Hydro Blasting","active":true},{"id":"L027","name":"Lifting, Carrying, Reaching, and Piling","kind":"Activity","loc":"Field","desc":"Excessive weight, Improper techniques","resp":"Employee","risk":"3C","control":"Follow SWP 1.14","residual":"4D","docTitle":"Lifting, Carrying, Reaching, and Piling","active":true},{"id":"L028","name":"Live Electrical Equipment","kind":"Hazard","loc":"Field","desc":"Shock, short circuit; bare wires, arc flash, frayed electrical cords, damp areas","resp":"Employee","risk":"2D","control":"Follow SJP 1.25","residual":"4C","docTitle":"Working Around Live Electrical Equipment","active":true},{"id":"L029","name":"Mobile Equipment","kind":"Hazard","loc":"Field","desc":"Moving machinery, noise, poor visibility","resp":"Employee","risk":"1D","control":"Follow SWP 1.23","residual":"3E","docTitle":"Working Near Mobile Equipment","active":true},{"id":"L030","name":"Office Equipment","kind":"Hazard","loc":"Office","desc":"Poor ergonomics, sharp objects, defective equipment, space heaters, poor lighting","resp":"Employee","risk":"3D","control":"Follow SWP 1.15","residual":"4E","docTitle":"Use of Office Equipment","active":true},{"id":"L031","name":"Office Work","kind":"Activity","loc":"Office","desc":"Slips, trips, cords laying on baseboard heaters, over loaded power bars, spills on floors, space heaters left on","resp":"Employee","risk":"3D","control":"Follow SWP 1.13","residual":"4E","docTitle":"Working in The Office","active":true},{"id":"L032","name":"Open Water","kind":"Hazard","loc":"Field","desc":"Deep and cold water; weather; hazardous materials, working at heights","resp":"Employee","risk":"2C","control":"Follow SWP 1.30","residual":"4C","docTitle":"Working on or Above Water","active":true},{"id":"L033","name":"Operation of Various Lab Equipment/Machinery for Testing Purposes.","kind":"Activity","loc":"Lab","desc":"Pinch points, noise, fumes/dust, electrocution, electric shock.","resp":"Employee","risk":"3D","control":"SWP 1.1, 1.2, 1.3, 1.8, 1.9, 1.10, 1.11, 1.14\nSJP: 1.14, 1.15, 1.16, 1.17, 1.18, 1.19, 1.20, 1.23, 1.25, 1.31, 1.32, 1.34","residual":"4D","docTitle":"Operation of Various Lab Equipment/Machinery for Testing Purposes.","active":true},{"id":"L034","name":"Pile Driving Analysis (PDA)","kind":"Activity","loc":"Field","desc":"Working near mobile cranes; overhead equipment; working at heights; working over water; objects falling from equipment at height","resp":"Employee","risk":"2D","control":"Follow SJP 1.2","residual":"4D","docTitle":"Pile Driving Inspection & Testing (PDA)","active":true},{"id":"L035","name":"Plastic Concrete Testing (Air/Slump)","kind":"Activity","loc":"Field","desc":"Vehicle/pedestrian impact; slips, trips and falls; improper lifting; exposure to chemicals","resp":"Employee","risk":"2D","control":"Follow SJP 1.50","residual":"4D","docTitle":"Testing Concrete - Air/Slump and Cylinders","active":true},{"id":"L036","name":"Pressure Systems Testing (Stored)","kind":"Activity","loc":"Field","desc":"Equipment failure; line leak, escape of flammable liquid or gases; contact with release of compressed liquid or gas, such as steam; impact from the blast of an explosion or release of compressed liquid or gas","resp":"Contractor","risk":"2D","control":"Follow SWP 1.27","residual":"4D","docTitle":"Testing Pressure Systems (Stored)","active":true},{"id":"L037","name":"Pressure Testing","kind":"Activity","loc":"Field","desc":"Flying objects such as valves, flanges, gauges and fittings; flying shrapnel such as small pieces of pipe, pipe fittings, or other system components that shatter into parts from the pressure; oxygen displacement from an inert gas used for testing; flooding in areas where energized electrical sources are present; slipping into pipe trench","resp":"Contractor","risk":"2D","control":"Follow SWP 1.28","residual":"4D","docTitle":"Pressure Testing","active":true},{"id":"L038","name":"Propane","kind":"Hazard","loc":"Field","desc":"Fumes; exposure to CO2, leak in line","resp":"Employee","risk":"2D","control":"Follow SWP 1.7","residual":"4D","docTitle":"Use of Propane","active":true},{"id":"L039","name":"Receiving and Disposal of Concrete Cylinders/Core Boxes","kind":"Activity","loc":"Lab","desc":"Working at heights, lifting/carrying heavy loads/equipment","resp":"Employee","risk":"3C","control":"Follow SJP 1.17","residual":"4D","docTitle":"Receiving and Disposal of Concrete Cylinders/Core Boxes","active":true},{"id":"L040","name":"Removal/Disposal of Underground Tanks","kind":"Activity","loc":"Field","desc":"Striking underground utilities; site contamination","resp":"Employee","risk":"1D","control":"Follow SJP 1.6","residual":"4D","docTitle":"Monitoring the Removal/Disposal of Underground Tanks","active":true},{"id":"L041","name":"Sampling Stockpiles","kind":"Activity","loc":"Field","desc":"Traffic; stockpile slide; improper lifting techniques, working around heavy equipment","resp":"Employee","risk":"3D","control":"Follow SJP 1.33","residual":"4E","docTitle":"Sampling Stockpiles","active":true},{"id":"L042","name":"Sandblasting","kind":"Activity","loc":"Field","desc":"Flammable material; dust; hot spots; insufficient lighting; working at heights","resp":"Employee","risk":"3D","control":"Follow SWP 1.26","residual":"4E","docTitle":"Sandblasting","active":true},{"id":"L043","name":"Sieve Testing","kind":"Activity","loc":"Lab","desc":"Slipping; pinch points; dust; lifting; working with hot equipment; working with electrical equipment","resp":"Employee","risk":"3D","control":"Follow SJP 1.18","residual":"4E","docTitle":"Sieve Testing","active":true},{"id":"L044","name":"Site Review","kind":"Activity","loc":"Field","desc":"Tripping / slipping due to slippery or wet conditions; uneven terrain; tripping hazards.","resp":"Employee","risk":"4D","control":"Wear appropriate PPE and watch for obstructions and site conditions","residual":"4E","docTitle":"","active":true},{"id":"L045","name":"Snow Blowing","kind":"Activity","loc":"Field","desc":"Noise; moving equipment and augers; adverse weather conditions, insufficient outwear and footwear","resp":"Employee","risk":"2D","control":"Follow SJP 1.51","residual":"4D","docTitle":"Snow Blowing","active":true},{"id":"L046","name":"Step Ladder Use","kind":"Activity","loc":"Field","desc":"Falling workers or objects","resp":"Employee","risk":"2D","control":"Follow SWP 1.4","residual":"4D","docTitle":"Use of Step Ladders","active":true},{"id":"L047","name":"Surveying","kind":"Activity","loc":"Field","desc":"Open trenches/pits; working at heights; traffic; heavy equipment; chainsaw kickback; extreme temperatures; working alone; tick infested areas, lifting heavy equipment","resp":"Employee","risk":"3D","control":"Follow SWP 1.35","residual":"4D","docTitle":"Surveying","active":true},{"id":"L048","name":"Temporary Pumping and Transfer Facilities for Hazardous Liquids","kind":"Activity","loc":"Field","desc":"Leaks; static build-up; slipping","resp":"Contractor","risk":"2C","control":"Follow SWP 1.1","residual":"4D","docTitle":"Temporary Pumping and Transfer Facilities for Hazardous Liquids","active":true},{"id":"L049","name":"Test Pit Investigation","kind":"Activity","loc":"Field","desc":"Unmapped/underground services (i.e., piping, electrical, gas); adjacent works; overhead electrical; unstable soil. (Cave in of trench or sloughing of stockpile.); access and egress; water table; surface run off; traffic; soil contamination (test excavation for LEL and O2); uneven terrain; excavation and compaction equipment moving in the area; falling objects; heavy equipment","resp":"Employee","risk":"2D","control":"Follow SJP 1.47","residual":"4D","docTitle":"Test Pit Investigation","active":true},{"id":"L050","name":"Ticks","kind":"Hazard","loc":"Field","desc":"Bites from ticks potentially carrying Lyme disease","resp":"Employee","risk":"2C","control":"Follow SWP 1.31","residual":"4D","docTitle":"Working In Tick Infested Areas","active":true},{"id":"L051","name":"Traffic","kind":"Hazard","loc":"Field","desc":"Vehicle/pedestrian impact; driver distraction, traffic disruption; accidents on adjacent thoroughfare","resp":"Employee","risk":"2D","control":"Follow SWP 1.12","residual":"4C","docTitle":"Traffic Control","active":true},{"id":"L052","name":"Traffic Monitoring (Miovision)","kind":"Activity","loc":"Field","desc":"Traffic; heavy equipment; electrical lines above ground; extreme temperatures; insects; animals; lifting; slippery road conditions","resp":"Employee","risk":"2D","control":"Follow SJP 1.45","residual":"4D","docTitle":"Traffic Monitoring","active":true},{"id":"L053","name":"Transporting Dangerous Goods","kind":"Activity","loc":"Field","desc":"Radioactive materials, leak from nuclear densometer","resp":"Employee","risk":"1D","control":"Follow SWP 1.10","residual":"4D","docTitle":"Transporting Dangerous Goods","active":true},{"id":"L054","name":"Underground Utility Locates","kind":"Activity","loc":"Field","desc":"Underground service strikes.; toxic gas escape; environmental contamination; falling down embankment; unstable soil (Cave in of trench or sloughing of stockpile)","resp":"Employee","risk":"1D","control":"Follow SJP 1.4","residual":"3D","docTitle":"Locating Underground Utilities for Monitoring of Trenching, Drilling or Excavating","active":true},{"id":"L055","name":"Use of Hand Tools","kind":"Activity","loc":"Field","desc":"Broken, missing or inoperative safety guards; insufficient or improper grounding","resp":"Employee","risk":"3E","control":"Follow SWP 1.3","residual":"4E","docTitle":"Use of Hand Tools","active":true},{"id":"L056","name":"Use of Scaffolds and Fall-Protection Systems","kind":"Activity","loc":"Field","desc":"Falling objects, working at heights; weather; scaffold collapse; collisions from site vehicle traffic.","resp":"Employee","risk":"2C","control":"Follow SJP 1.8","residual":"4D","docTitle":"Use of Scaffolds and Fall-Protection Systems","active":true},{"id":"L057","name":"Using Lockout/Tagout on Sites","kind":"Activity","loc":"Field","desc":"Electrical energy supply; arc flash; compressed air supply; hydraulic oil circuits; gas flow; chemical supply; steam supply","resp":"Employee","risk":"1C","control":"Follow SJP 1.34","residual":"4C","docTitle":"Using Lockout/Tagout on Sites","active":true},{"id":"L058","name":"Using UCS Breaker Plates","kind":"Activity","loc":"Lab","desc":"Pinching, crushing of hands; high pressure hose failing; possibility of flying debris","resp":"Employee","risk":"2D","control":"Follow SJP 1.13","residual":"4D","docTitle":"Using UCS Breaker Plates","active":true},{"id":"L059","name":"Utility Lines","kind":"Hazard","loc":"Field","desc":"Machinery/equipment contacting power lines","resp":"Employee/Contractor","risk":"1D","control":"Follow SJP 1.9","residual":"4D","docTitle":"Working with Electrical Equipment Around Utility Lines","active":true},{"id":"L060","name":"Working Alone","kind":"Hazard","loc":"Field","desc":"Extreme temperatures; exposure to chemicals; fatigue; contact with wild or domestic animals; working in remote areas; carrying or lifting equipment or materials; medical conditions; traffic; working near mobile equipment; exposure to ticks","resp":"Employee","risk":"3D","control":"Follow SWP 1.11","residual":"4D","docTitle":"Working Alone","active":true},{"id":"L061","name":"Working at Computer Stations","kind":"Activity","loc":"Office","desc":"Ergonomically incorrect work space (computer monitors, chair, desk); sitting too long, eye strain","resp":"Employee","risk":"3D","control":"Follow SWP 1.17","residual":"4D","docTitle":"Working at Computer Stations","active":true},{"id":"L062","name":"Working at Heights","kind":"Activity","loc":"Field","desc":"Lack of fall protection equipment; falling objects; weather, slippery surfaces","resp":"Employee","risk":"1D","control":"Follow SJP 1.7","residual":"4C","docTitle":"Working at Heights","active":true},{"id":"L063","name":"Working at Wastewater Treatment Facilities","kind":"Activity","loc":"Field","desc":"Raw sewage; Open pits, trenches; ladders, scaffolds, catwalks; open tanks; electric motors; UV light; chemicals; conveying equipment, raw sewage","resp":"Employee","risk":"1D","control":"Follow SWP 1.1","residual":"4C","docTitle":"Working at Wastewater Treatment Facilities","active":true}],"templates":[{"id":"T0","name":"Environmental Testing","rows":[{"name":"Working Alone/ Environmental Monitoring, Working in Hazardous Areas","task":"Air Sampling, soil surface and ground water sampling","desc":"Slips and falls, contamination, site specific hazards","resp":"Employee","risk":"4D","control":"Communication Devices. Contact with office. Wear PPE. Review Work Plan (Identify Hazards). Ensure Proper Training. Work in Pairs. Follow SWP 1.11","residual":"4E"},{"name":"Chemicals","task":"Preparing sample bottles","desc":"Preservative present in sample bottles and chemicals added.","resp":"Employee","risk":"3D","control":"Wear nitrile gloves, safety glasses, be aware of MSDS sheets. SWP 1.2, SJP 1.20","residual":"4D"},{"name":"Material Sampling","task":"Obtain Sample from Material","desc":"Heavy equipment, lifting, material slides","resp":"Employee","risk":"4D","control":"PPE; SWP 1.14, 1.23; SJP 1.33","residual":"4E"},{"name":"Hazardous/ Contaminated Material","task":"Testing or Monitoring Possible Hazardous/ Contaminated materials","desc":"Personal injury, possible contamination or exposure","resp":"Employee","risk":"2D","control":"Wear and maintain PPE. Contact Appropriate Authority to arrange for proper disposal or remediation plan. Do not smell or inhale soil vapors or unknown substances. Follow SJP 1.20, SJP 1.36","residual":"3D"},{"name":"Lifting, Carrying, Reaching & Piling","task":"Lifting core boxes, samples or other material","desc":"Possible back, or muscle strains","resp":"Employee","risk":"4C","control":"Do not lift objects that are too heavy. Use proper lifting equipment when necessary. Follow SWP 1.14.","residual":"4D"},{"name":"Gastechor/PID Calibration","task":"Using calibration gas to calibrate machines for specific tasks","desc":"Fire/explosion. Possible exposure to hazardous materials","resp":"Employee","risk":"4D","control":"Wear PPE. Have Fire Extinguisher Ready. Ensure Proper Handling of Cylinders. Follow SWP 1.23","residual":"4E"}]},{"id":"T1","name":"Asset Condition Assessment","rows":[{"name":"Assessing roof conditions (May or may not require the use of a harness)","task":"Inspection and assessment of roof condition","desc":"Working at Heights, Use of Extension Ladder","resp":"Employee","risk":"3D","control":"Harness if required, Hard Hat, Safety Boots, Vest, SWP 1.4, 1.5, SJP 1.7, 1.8, Fall Protection Training. Rescue plan to be assessed","residual":"4E"},{"name":"Site Inspection Walk Through and/or Asset Condition Assessment","task":"Inspection and assessment of building condition","desc":"Use of Step Ladder, Use of Extension Ladder, Working alone","resp":"Employee","risk":"4E","control":"SWP 1.4, SWP 1.5. Rescue plan to be assessed","residual":"4E"},{"name":"Assessing road conditions","task":"Inspection and assessment of road condition","desc":"Traffic","resp":"Employee","risk":"4E","control":"SJP 1.45 PPE (High visibility vest) and a means of communication","residual":"4E"}]},{"id":"T2","name":"Field Material Testing","rows":[{"name":"Obtaining and Testing Samples","task":"Locating, Obtaining and Testing field sample","desc":"Heavy Equipment, Traffic Lighting, Chemical Burn, Lifting and carrying","resp":"Employee","risk":"4D","control":"PPE; SWP 1.14, 1.9 and 1.12; SJP 1.14, 1.16 and 1.31","residual":"4E"},{"name":"Compaction Testing","task":"Using Nuclear Densometer and hammering pin in grout","desc":"Radiation Exposure, Using Mechanical Tools, Back Injury, Traffic, Striking hand and/or leg due to hammering pin","resp":"Employee","risk":"3D","control":"PPE; SWP 1.10, 1.14, 1.12, 1.4 and 1.1, SJP 1.4 ; Take due care when driving the pin","residual":"4E"},{"name":"Coring Asphalt","task":"Locating and Obtaining Samples","desc":"Traffic, Power Tools, Lifting","resp":"Employee","risk":"4D","control":"PPE; SWP 1.12, 1. 14, 1.2 and 1.3; SJP 1,19, 1.31, 1.32, 1.46","residual":"4E"},{"name":"Sample Stockpile","task":"Obtain Sample from Material Stockpile","desc":"Heavy Equipment, Lifting, Material Slides","resp":"Employee","risk":"4D","control":"SWP 1.14, 1.23","residual":"4E"},{"name":"Asphalt Sampling","task":"Obtaining Hot Sample during placing operations","desc":"Heavy Equipment, Burns, Traffic, Lifting","resp":"Employee","risk":"4D","control":"PPE; SWP 1.12, 1.14 and 1.23 SJP .-II, 1.19, 1.31","residual":"4E"},{"name":"Geotechnical Investigation","task":"Test Pit, Subgrade Proof Rolling, Underground Utilities, Boreholes","desc":"Traffic, Heavy Equipment, Excavations, Trench cave ins","resp":"Employee","risk":"1C","control":"PPE, SJP 1.1, 1.2, 1.3, 1.4, 1.9 ; SWP 1.4 and 1.5. Use of Engineering Control Measures acquired in Trenching Awareness Training","residual":"3D"},{"name":"Survey","task":"Layout or pickup of Proposed or Record Drawing Sample Location","desc":"Traffic","resp":"Employee","risk":"4D","control":"PPE; SWP 1. 12; SJP 1.35","residual":"4E"}]},{"id":"T3","name":"Material Testing","rows":[{"name":"Use of lab equipment","task":"Operation of different machinery/equipment for testing","desc":"Pinch points, noise, fumes, cuts, burns, electrocution, dust, electric shocks","resp":"Employee","risk":"3D","control":"Proper use of PPE, Training on use of equipment, calibration of equipment. lab procedure. Follow SJP 1.14, 1.15, 1.16, 1.17, 1.18, 1.19, 1.20, 1.23, 1.25, 1.34, 1.31; SWP 1.9, 1.11, 1.13, 1.2, 1.8, 1.14, 1.3, 1.4, 1.10","residual":"4D"},{"name":"Working with Chemicals","task":"Use of chemicals for testing","desc":"Chemical burns, inhalation, ingestion, contact with eyes, chemical spills, fumes, explosion, lack of oxygen, fire, pressure build ups, proper disposal","resp":"Employee","risk":"2D","control":"Proper use of PPE, Proper storage and disposal of chemicals, MSDS review prior to using chemicals. Follow SWP 1.2","residual":"2E"}]},{"id":"T4","name":"Municipal Inspection","rows":[{"name":"Excavation, Drilling & Trenching","task":"Hive employee working around and possibly within a trench conducting inspection services","desc":"U/G & O/H Electrical Services Trenching/Excavation (Be aware of confined space). Cave-ins","resp":"Contractor\nEmployee","risk":"1D","control":"Contractor to Trace all utilities and maintain. Trench Awareness Training Requirement. Use of Engineering Control Measures acquired in Trenching Awareness Training. Wear PPE. Follow SJP 1.1, 1.2, 1.3 SJP 1.4 and 1.33","residual":"4D"},{"name":"Confined Space","task":"Hive employee to be aware of definition of confined space (ie trench, manholes or culverts) which maybe present during construction works.","desc":"Fumes, Lack of Oxygen","resp":"Employee","risk":"3B","control":"Hive employee to avoid confined space. Confined Space entry permissible if training is up to date for those entering confined space and the spotter. Rescue plan and permits in place – MANDATORY","residual":"4D"},{"name":"Pressure Testing","task":"Hive employee witnessing testing activities (municipal piping systems).","desc":"Plug/pipe breakage causing Worker Injury","resp":"Employee","risk":"4D","control":"SWP 1.28 SJP 1.34","residual":"4E"},{"name":"Mobile Equipment","task":"Contractor using mobile equipment to execute work scope. Hive employee is within the contractors work site conducting inspection services","desc":"Collision of Mobile Equipment with Employee","resp":"Employee","risk":"2D","control":"SWP 1.23 Make eye contact with operator. Wear Safety Vest and all other applicable PPE.","residual":"4D"},{"name":"Jobsite Traffic Control/Temporary Jobsite Traffic Control","task":"Contractor conducting work and maintaining traffic control sign system. Hive employee is within this worksite conducting inspection services.","desc":"Collision between Vehicle/Mobile Equipment/Pedestrian/Employee","resp":"Contractor","risk":"1D","control":"SWP 1.12 Notify Contractor of deficient signage or controls.","residual":"4D"},{"name":"Spills","task":"Contractors’ mobile equipment leaking and/or digging which may expose contaminated soil.","desc":"Refueling, Hydraulic fluids, existing conditions.","resp":"Contractor","risk":"4C","control":"SJP 1.20 Notify Contractor and Owner.","residual":"4E"},{"name":"Lifting, Carrying, Reaching & Piling","task":"Hive employee carries survey equipment, survey stakes, measurement devices, etc. to conduct inspection services.","desc":"Back Injury","resp":"Employee","risk":"2D","control":"SWP 1.14","residual":"4E"},{"name":"Tools","task":"Hive employee utilizes tools to conduct inspections and conduct work (ie hammer for stakes, measuring tape, etc).","desc":"Defective tools and/or improper use","resp":"Employee","risk":"4D","control":"SWP 1.3","residual":"4E"},{"name":"Environmental Factors","task":"Hive employee is exposed to noise, dust, weather (cold and heat exposures) and is to be prepared.","desc":"Heat exhaustion, frost bite, sun stroke, insects, dust, noise, etc","resp":"Employee","risk":"4C","control":"Follow Appendix D of Hive H&S Manual – Information Sheets Specific to PPE","residual":"4D"},{"name":"Field Work","task":"Approaching Homes/Homeowners and Sites","desc":"Domestic and wild animal encounters/animal bites","resp":"Employee","risk":"4E","control":"Wear PPE, SWP 1.30","residual":"4D"}]},{"id":"T5","name":"Surveying","rows":[{"name":"Surveying","task":"Employees working alone","desc":"Slips, trips and falls or medical condition","resp":"Employee","risk":"3D","control":"SWP 1.11, SJP 1.35. Wear PPE","residual":"4D"},{"name":"Surveying","task":"Temporary jobsite traffic control - Setting up and tear down of survey signs. Also working with contractors site signage","desc":"Employee\\vehicle collision","resp":"Employee","risk":"1D","control":"SWP 1.12, Watch for traffic and make Eye contact with equip operators. Wear PPE","residual":"1E"},{"name":"Surveying","task":"Excavation near trenches\\heavy equipment","desc":"Falling in trenches\\being struck By heavy equipment","resp":"Employee","risk":"1D","control":"SJP 1.1, 1.2, 1.3, 1.4 1.23 SJP 1.33. Wear PPE","residual":"1E"},{"name":"Surveying","task":"Working at heights on buildings or elevated platforms","desc":"Trips and falls","resp":"Employee","risk":"2D","control":"SJP 1.7, 1.8 SWP 1.6. Wear PPE","residual":"2E"},{"name":"Surveying","task":"Working near high tension lines overhead","desc":"Shock\\electrocution","resp":"Employee","risk":"1D","control":"SJP 1.9, 1.27 SWP 1.19. Wear PPE","residual":"1E"},{"name":"Surveying","task":"Working in confined spaces","desc":"Toxic materials and improper ventilation, limited egress","resp":"Employee","risk":"1D","control":"SJP 1.10, SWP 1.19. Wear PPE","residual":"1E"},{"name":"Surveying","task":"Working near mobile/heavy equipment","desc":"Employee\\vehicle collision","resp":"Employee","risk":"1D","control":"SWP 1.12, 1.23. Wear PPE","residual":"1E"},{"name":"Surveying","task":"Operating chainsaws","desc":"Getting cut and falling trees","resp":"Employee","risk":"2D","control":"SJP 1.22. Wear PPE","residual":"2E"},{"name":"Surveying","task":"Water access when surveying water bodies for location\\depth","desc":"Slips and falls into water. Deep water and currents","resp":"Employee","risk":"2D","control":"SJP 1.30, SJP 1.35. Wear PPE","residual":"2E"},{"name":"Surveying","task":"Operating survey equipment in various locations and weather conditions","desc":"Traffic and extreme temperatures","resp":"Employee","risk":"3D","control":"SJP 1.35. Wear PPE","residual":"3E"},{"name":"Field Work","task":"Approaching homes/homeowners and sites","desc":"Domestic and wild animal encounters/animal bites","resp":"Employee","risk":"3D","control":"SWP 1.30. Wear PPE","residual":"3E"}]},{"id":"T6","name":"Traffic Monitoring","rows":[{"name":"Site Observation","task":"Obtaining Field Measurements / Data","desc":"Traffic, environmental factors -heat exhaustion, frost bite, sun stroke, insects, dust, noise, reduced visibility in winter months for pass-by drivers; reduced area to safely park your vehicle (snow banks)","resp":"Employee","risk":"3D","control":"Wear Appropriate PPE’s - Follow Appendix D of Hive H&S Manual; Obey all traffic rules; Review attached Appendix J Thermal Exposure; Take extra care during extreme weather (snow/freezing rain)","residual":"4D"},{"name":"Traffic Data Collection — using Miovision Cameras","task":"Selecting setup location","desc":"Overhead wires, Traffic","resp":"Employee","risk":"4D","control":"Avoid overhead wires by selecting suitable locations; Select site that will not interfere with traffic including cyclists and pedestrians; Work off the street and face traffic","residual":"4E"},{"name":"Traffic Data Collection — using Miovision Cameras","task":"Placing, extending, lowering, and removing the mounting poles","desc":"Pole can become unstable with fully extended and may fall on employee or into traffic","resp":"Employee","risk":"4D","control":"Stabilize footing and secure at least one strap before letting go of the pole","residual":"4E"},{"name":"Traffic Data Collection — using Miovision Cameras","task":"Tightening straps","desc":"The strapping mechanism may scrape hand while tightening","resp":"Employee","risk":"4D","control":"Wear gloves and grip handle properly","residual":"4E"},{"name":"Traffic Data Collection — using Miovision Cameras","task":"Transporting equipment","desc":"Carrying all components simultaneously can be a tripping hazard (particularly on uneven Terrain)","resp":"Employee","risk":"4D","control":"Do not carry all equipment in one trip; Be careful on uneven terrain","residual":"4E"}]}],"emergencyFields":["Ambulance","Police","Fire Department","Power Utility","Gas","Nearest medical facility","Municipal Water Dept","Municipality","Environmental Emergencies","Occupational Health & Safety","Coast Guard Environmental & Fisheries Emergencies","Emergency Forest Fire Reporting, and Hunting or Fishing Infractions","Workers Compensation Board","Heritage Gas","Maritimes & Northeast Pipeline (Gas)","Corridor Resources (Gas)","NS Construction Safety Association","NS Dept. of Labour & Advanced Education","CANUTEC (Trans. of Dangerous Goods Emergencies)","Other"],"communities":[{"id":"C0","city":"Dieppe","prov":"NB","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-663-6272 NB Power","Gas":"1-800-994-2762 Enbridge","Nearest medical facility":"Moncton Hospital/Goeorges Dumont Hospital","Municipal Water Dept":"1-506-877-7990 Dieppe","Municipality":"1-506-877-7990 Dieppe","Environmental Emergencies":"1-800-565-1633","Occupational Health & Safety":"1-800-222-9775","Coast Guard Environmental & Fisheries Emergencies":"1-800-565-1583","Emergency Forest Fire Reporting, and Hunting or Fishing Infractions":"1-800-565-1634","Workers Compensation Board":"1-800-870-3331"}},{"id":"C1","city":"Fredericton","prov":"NB","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-663-6272 NB Power","Gas":"1-800-994-2762 Enbridge","Nearest medical facility":"Chalmers Hospital Fredericton","Municipal Water Dept":"1-506-460-2020 Fredericton","Municipality":"1-506-460-2020 Fredericton","Environmental Emergencies":"1-506-444-5149","Occupational Health & Safety":"1-800-222-9775"}},{"id":"C2","city":"Moncton","prov":"NB","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-663-6272 NB Power","Gas":"1-800-994-2762 Enbridge","Nearest medical facility":"Moncton Hospital/Goeorges Dumont Hospital","Municipal Water Dept":"1-506-835-3333 Moncton","Municipality":"1-506-835-3333 Moncton","Environmental Emergencies":"1-800-565-1633","Occupational Health & Safety":"1-800-222-9775","Coast Guard Environmental & Fisheries Emergencies":"1-800-565-1582","Emergency Forest Fire Reporting, and Hunting or Fishing Infractions":"1-800-565-1633"}},{"id":"C3","city":"Quispamsis","prov":"NB","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-663-6272 NB Power","Gas":"1-800-994-2762 Enbridge","Nearest medical facility":"Saint John Regional Hospital\n400 University Avenue, Saint John","Municipal Water Dept":"1-506-849-5778 Quispamsis","Municipality":"1-506-849-5778 Quispamsis","Environmental Emergencies":"1-800-565-1633","Occupational Health & Safety":"1-800-222-9775"}},{"id":"C4","city":"Riverview","prov":"NB","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-663-6272 NB Power","Gas":"1-800-994-2762 Enbridge","Nearest medical facility":"Moncton Hospital/Goeorges Dumont Hospital","Municipal Water Dept":"1-506-387-2020 Riverview","Municipality":"1-506-387-2020 Riverview","Environmental Emergencies":"1-800-565-1633","Occupational Health & Safety":"1-800-222-9775","Coast Guard Environmental & Fisheries Emergencies":"1-800-565-1584","Emergency Forest Fire Reporting, and Hunting or Fishing Infractions":"1-800-565-1635"}},{"id":"C5","city":"Rothesay","prov":"NB","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-663-6272 NB Power","Gas":"1-800-994-2762 Enbridge","Nearest medical facility":"Saint John Regional Hospital\n400 University Avenue, Saint John","Municipal Water Dept":"1-506-848-6600 Rothesay","Municipality":"1-506-848-6600 Rothesay","Environmental Emergencies":"1-800-565-1633","Occupational Health & Safety":"1-800-222-9775"}},{"id":"C6","city":"Saint John","prov":"NB","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-658-5252 SJ Energy","Gas":"1-800-994-2762 Enbridge","Nearest medical facility":"Saint John Regional Hospital\n400 University Avenue, Saint John","Municipal Water Dept":"1-506-658-4455 Saint John","Municipality":"1-506-658-4455 Saint John","Environmental Emergencies":"1-800-565-1633","Occupational Health & Safety":"1-800-222-9775"}},{"id":"C7","city":"Various","prov":"NFLD","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-800-747-5711 NF Power","Environmental Emergencies":"1-800-563-9089","Occupational Health & Safety":"1-800-563-5471"}},{"id":"C8","city":"Halifax","prov":"NS","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-877-428-6004 NS Power","Gas":"1-866-313-3030","Municipal Water Dept":"1-902-490-6940 Halifax","Municipality":"1-902-490-5020 Halifax","Environmental Emergencies":"1-800-565-1633","Occupational Health & Safety":"1-800-952-2687","Coast Guard Environmental & Fisheries Emergencies":"1-800-565-1582","Workers Compensation Board":"1-800-870-3331","Heritage Gas":"1-866-313-3030","Maritimes & Northeast Pipeline (Gas)":"1-866-344-5463","Corridor Resources (Gas)":"1-800-880-5705","NS Construction Safety Association":"1-800-971-3888","NS Dept. of Labour & Advanced Education":"1-800-670-4357","CANUTEC (Trans. of Dangerous Goods Emergencies)":"1-888-226-8832"}},{"id":"C9","city":"Sydney","prov":"NS","v":{"Ambulance":"911","Police":"911","Fire Department":"911","Power Utility":"1-877-428-6004 NS Power","Municipal Water Dept":"1-902-563-5255 Sydney","Municipality":"1-902-563-5255 Sydney","Environmental Emergencies":"1-800-565-1634","Occupational Health & Safety":"1-800-952-2687"}}]}</script>
+<script>
+{
+'use strict';
+const VERSION = '0.1.0';
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c === 'x' ? r : (r&3|8)).toString(16); }));
+const clone = o => JSON.parse(JSON.stringify(o));
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+const fmtDT = s => s ? new Date(s).toLocaleString('en-CA', {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+const fmtD = s => s ? new Date(s.length === 10 ? s + 'T12:00' : s).toLocaleDateString('en-CA', {year:'numeric',month:'short',day:'numeric'}) : '';
+const SEED = JSON.parse(document.getElementById('seed').textContent);
+const WIDE = () => matchMedia('(min-width: 960px)').matches;
+
+/* ---------- Hive logo (built-in; a logo.png in the site folder replaces it) ---------- */
+const HEX = (cx, cy, r) => { let p = []; for (let i = 0; i < 6; i++) { const a = Math.PI / 180 * (60 * i - 30); p.push((cx + r * Math.cos(a)).toFixed(1) + ',' + (cy + r * Math.sin(a)).toFixed(1)); } return p.join(' '); };
+const HEXES = [[0,0,'#C2D64A'],[1,0,'#00ADEF'],[0.5,0.866,'#FFDF00']];
+const hexMark = (s = 1) => HEXES.map(([x,y,c]) => `<polygon points="${HEX(12 + x*19*s, 11 + y*19*s, 10*s)}" fill="${c}" stroke="#fff" stroke-width="1.2"/>`).join('');
+const LOGO_SVG = `<svg viewBox="0 0 150 44" aria-label="Hive"><g>${hexMark()}</g><text x="52" y="27" font-family="Figtree,Arial" font-weight="700" font-size="25" fill="currentColor">hive</text><text x="53" y="39" font-family="Figtree,Arial" font-weight="600" font-size="7.6" letter-spacing="0.9" fill="currentColor">ENGINEERING</text></svg>`;
+let LOGO_IMG = null; // data URL when logo.png exists
+
+/* ---------- risk matrix (from the workbook's Hazard Risk Assessment Matrix form) ---------- */
+const SEV = {1:'Death. Permanent disabling injury', 2:'Extensive permanent injury (e.g. loss of finger/s). Extended hospitalization', 3:'Significant non-permanent injury. Overnight hospitalization (inpatient)', 4:'Medical help needed'};
+const PROB = {A:'Frequent – almost certain to occur in most circumstances', B:'Probable – likely to occur frequently', C:'Occasional – possible and likely to occur at some time', D:'Remote – unlikely to occur but could happen', E:'Improbable – may occur only in rare and exceptional circumstances'};
+const MATRIX = {'1A':'Ext','1B':'Ext','1C':'Ext','1D':'Ext','1E':'High','2A':'Ext','2B':'Ext','2C':'Ext','2D':'High','2E':'High','3A':'Ext','3B':'High','3C':'High','3D':'Med','3E':'Med','4A':'High','4B':'High','4C':'Med','4D':'Low','4E':'Low'};
+const SEV_SHORT = {1:'Death / disabling', 2:'Permanent injury', 3:'Hospital stay', 4:'Medical aid'};
+const LEVELS = ['Ext','High','Med','Low'];
+function matrixHtml(cur) {
+  return `<div class="matrix"><div class="h">Severity ↓<br>Likelihood →</div>${'ABCDE'.split('').map(p => `<div class="h" title="${esc(PROB[p])}">${p}<br>${PROB[p].split(' –')[0]}</div>`).join('')}
+   ${[1, 2, 3, 4].map(s => `<div class="h" title="${esc(SEV[s])}"><b>${s}</b> ${SEV_SHORT[s]}</div>` + 'ABCDE'.split('').map(p => { const c = s + p, l = MATRIX[c]; return `<button type="button" class="risk ${l} ${c === cur ? 'cur' : ''}" data-c="${c}">${c}<small>${l}</small></button>`; }).join('')).join('')}</div>
+   <details class="small" style="margin-top:8px"><summary>Severity and likelihood definitions</summary>${[1, 2, 3, 4].map(s => `<div>${s} – ${esc(SEV[s])}</div>`).join('')}${'ABCDE'.split('').map(p => `<div>${p} – ${esc(PROB[p])}</div>`).join('')}</details>`;
+}
+const LEVEL_NAME = {Ext:'Extreme', High:'High', Med:'Medium', Low:'Low'};
+const normCode = c => { c = String(c || '').replace(/\s/g,'').toUpperCase(); return MATRIX[c] ? c : ''; };
+const levelOf = c => MATRIX[normCode(c)] || '';
+const riskBtn = (code, attrs) => { const c = normCode(code), l = levelOf(c); return `<button type="button" class="risk ${l}" ${attrs}>${c ? esc(c) + ' <small>' + LEVEL_NAME[l] + '</small>' : 'Pick…'}</button>`; };
+
+/* ---------- SOP / SWP references in control measures ---------- */
+const DOC_RE = /\b(SWP|SJP|SOP)\b\s*:?\s*((?:\d+\s*[.,]\s*\d+(?:\s*(?:,|;|and|&)\s*(?=\d))?\s*)+)/gi;
+function docCodes(text) {
+  const out = [];
+  String(text || '').replace(DOC_RE, (m, pre, nums) => { (nums.match(/\d+\s*[.,]\s*\d+/g) || []).forEach(n => { const k = pre.toUpperCase() + ' ' + n.replace(/\s/g,'').replace(',', '.'); if (!out.includes(k)) out.push(k); }); return m; });
+  return out;
+}
+const docMap = () => Object.fromEntries((S.cfg.register || []).map(d => [d.code, d]));
+function docChips(text) {
+  const m = docMap(), codes = docCodes(text);
+  if (!codes.length) return '';
+  return '<div class="docs">' + codes.map(c => { const d = m[c]; const t = d && d.title ? c + ' – ' + d.title : c; return d && /^https:\/\//i.test(d.url || '') ? `<a href="${esc(d.url)}" target="_blank" rel="noopener" title="${esc(t)}">${esc(c)} ↗</a>` : `<span title="${esc(t)} (no link yet)">${esc(c)}</span>`; }).join('') + '</div>';
+}
+
+/* ---------- default texts (from the workbook, with EXP replaced by Hive) ---------- */
+const DEFAULT_TEXTS = {
+  purpose: 'The purpose of this document is to provide health and safety procedures to be followed for the above mentioned project. In addition to the items outlined in this project document, Hive employees and sub-contractors must follow the Local Jurisdiction Occupational Health and Safety Legislation and Regulations as well as Hive’s Health and Safety Program or their own; whichever is more stringent. Site assigned Hive staff and sub-contractors must have copies of these documents on-site for reference.',
+  subDeclaration: 'Subcontractors to submit a signed declaration stating their employees on site have their required H&S training',
+  subNote: 'Note: Adequacy of subcontractor H&S plan to be confirmed by the Hive H&S Manager.',
+  accident: 'Following an accident causing personnel injury or an emergency, an incident report will be completed by the individual in charge at the scene. Personnel involved will be questioned as required to document the incident. The report will include, as a minimum, names of people involved; date and time; exact location; type of exposure or nature of injury; nature of emergency response initiated; witnesses/other personnel involved; corrective measures initiated, and recommendations about avoiding additional similar occurrences.',
+  notes: '1. The Comprehensive Hazard Assessment Guide (Activities & hazards library) will assist in selecting applicable hazards.\n2. Any new hazards identified must be communicated back to the Proposal/Project Manager immediately.\n3. All staff going to site must review and acknowledge receipt of the Hazard Assessment.\n4. Risk assessment should consider level of staff experience.\n5. Rescue plans must be assessed for any activity involving Confined Space, Working at Heights or Working Alone.',
+  violence: 'Is there a heightened risk for violence? If yes, please contact your local safety coordinator or manager for additional follow-up.',
+  emailBody: 'Please review the attached Safety Plan. Ensure all information is valid and that Hazard Assessment control measures are implemented prior to commencement of all work activities. Please indicate if implementation of control measures are impeded in any way.',
+  signP1: 'I have prepared this Health and Safety Plan and confirm the project information and emergency contacts are correct.',
+  signP2: 'I have completed this Hazard Assessment and will make sure the control measures are in place before work starts.'
+};
+const CORE_EMERG = ['Ambulance','Police','Fire Department','Power Utility','Gas','Municipal Water Dept','Municipality','Environmental Emergencies','Occupational Health & Safety','Other'];
+
+function defaultRegister(library, templates) {
+  const reg = {};
+  const seen = {};
+  library.forEach(x => { const c = docCodes(x.control); c.forEach(k => { reg[k] = reg[k] || {code:k, title:'', url:'', rev:''}; if (c.length === 1 && x.docTitle) (seen[k] = seen[k] || new Set()).add(x.docTitle.trim()); }); });
+  Object.entries(seen).forEach(([k, t]) => { if (t.size === 1) reg[k].title = [...t][0]; });
+  templates.forEach(t => t.rows.forEach(r => docCodes(r.control).forEach(k => { reg[k] = reg[k] || {code:k, title:'', url:'', rev:''}; })));
+  return Object.values(reg).sort(docSort);
+}
+function docSort(a, b) { const pa = a.code.split(' '), pb = b.code.split(' '); if (pa[0] !== pb[0]) return pa[0] < pb[0] ? -1 : 1; const na = pa[1].split('.').map(Number), nb = pb[1].split('.').map(Number); return (na[0]-nb[0]) || (na[1]-nb[1]); }
+function seedConfig() {
+  const library = SEED.library.map(x => ({...x}));
+  return {
+    library, templates: clone(SEED.templates), register: defaultRegister(library, SEED.templates),
+    emergency: {fields: SEED.emergencyFields.slice(), communities: clone(SEED.communities)},
+    texts: {...DEFAULT_TEXTS}
+  };
+}
+
+/* ---------- local storage (IndexedDB, memory fallback) ---------- */
+const DB = {
+  db: null, mem: {},
+  async open() { try { this.db = await new Promise((res, rej) => { const r = indexedDB.open('hivenotes', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); } catch (e) { this.db = null; } },
+  async get(k) { if (!this.db) return this.mem[k]; return new Promise(res => { try { const q = this.db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); } catch (e) { res(this.mem[k]); } }); },
+  async set(k, v) { if (!this.db) { this.mem[k] = v; return; } return new Promise(res => { try { const tx = this.db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => res(); } catch (e) { this.mem[k] = v; res(); } }); }
+};
+const LS = { get(k) { try { return localStorage.getItem('hn.' + k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem('hn.' + k, v); } catch (e) {} } };
+
+/* ---------- app state ---------- */
+const S = {
+  mode: 'demo', conf: {}, me: null, staff: [], cfg: null, notes: {}, outbox: [],
+  view: 'home', param: null, online: navigator.onLine, lastSync: null, syncing: false, needPassword: false
+};
+const key = k => S.mode === 'demo' ? 'demo:' + k : 'live:' + (k === 'cfg' || k === 'staff' ? k : (S.me ? S.me.id : 'x') + ':' + k);
+const isAdmin = () => S.me && S.me.role === 'admin';
+const staffById = id => S.staff.find(s => s.id === id);
+const pms = () => S.staff.filter(s => s.is_pm && s.active !== false);
+
+/* ---------- demo backend ---------- */
+const DEMO_STAFF = [
+  {id:'d-admin', username:'sschaller', full_name:'Steven Schaller', email:'steve.schaller@example.com', role:'admin', is_pm:true, title:'Senior Project Manager', active:true, joined_at:'2026-11-01'},
+  {id:'d-pm2', username:'jmacdonald', full_name:'Jenna MacDonald', email:'jenna.macdonald@example.com', role:'staff', is_pm:true, title:'Project Manager', active:true, joined_at:'2026-11-01'},
+  {id:'d-tech', username:'kwhite', full_name:'Kyle White', email:'kyle.white@example.com', role:'staff', is_pm:false, title:'Environmental Technician', active:true, joined_at:'2026-11-02'},
+  {id:'d-tech2', username:'aboudreau', full_name:'Amélie Boudreau', email:'amelie.boudreau@example.com', role:'staff', is_pm:false, title:'Field Technologist', active:true}
+];
+const Demo = {
+  async init() {},
+  async restore() { const id = LS.get('demoUser') || 'd-tech'; S.staff = (await DB.get('demo:staff')) || clone(DEMO_STAFF); return S.staff.find(s => s.id === id) || S.staff[0]; },
+  async signIn(u) { S.staff = (await DB.get('demo:staff')) || clone(DEMO_STAFF); const me = S.staff.find(s => s.username === u.trim().toLowerCase() || s.email === u.trim().toLowerCase()); if (!me) throw new Error('No demo user with that user name. Try kwhite or sschaller.'); LS.set('demoUser', me.id); return me; },
+  async signOut() { LS.set('demoUser', ''); },
+  async pull() {},
+  async push() {},
+  async saveConfig(k, data) { S.cfg[k] = data; await DB.set('demo:cfg', S.cfg); },
+  async saveStaff(list) { S.staff = list; await DB.set('demo:staff', list); },
+  async invite(st) { st.id = 'd-' + uid().slice(0, 8); st.active = true; st.invited_at = new Date().toISOString(); S.staff.push(st); await this.saveStaff(S.staff); return {preview: true}; },
+  async updateStaff(st) { const i = S.staff.findIndex(x => x.id === st.id); S.staff[i] = st; await this.saveStaff(S.staff); },
+  async adminAction() { return {preview: true}; }
+};
+
+/* ---------- live backend (Supabase) ---------- */
+const Live = {
+  sb: null,
+  async init() {
+    if (!window.supabase) await loadScript('vendor/supabase.js');
+    this.sb = window.supabase.createClient(S.conf.supabaseUrl, S.conf.supabaseKey, {auth: {persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'hn-auth'}});
+    this.sb.auth.onAuthStateChange((ev) => { if (ev === 'PASSWORD_RECOVERY') { S.needPassword = true; render(); } });
+  },
+  async restore() {
+    const {data} = await this.sb.auth.getSession();
+    const ses = data.session;
+    if (!ses) { const last = LS.get('lastUid'); return !S.online && last ? (await DB.get('live:me:' + last)) || null : null; }
+    const cached = await DB.get('live:me:' + ses.user.id);
+    if (S.online) { try { const me = await this.profile(ses.user); if (me) { if (!me.noProfile) { await DB.set('live:me:' + me.id, me); LS.set('lastUid', me.id); this.sb.rpc('hn_touch').then(() => {}, () => {}); } return me; } } catch (e) { console.warn(e); } }
+    return cached || (S.online ? {id: ses.user.id, email: ses.user.email, noProfile: true} : null);
+  },
+  async profile(user) { const {data, error} = await this.sb.from('hn_staff').select('*').eq('id', user.id).maybeSingle(); if (error) throw error; return data || {id: user.id, email: user.email, noProfile: true}; },
+  async emailFor(u) { u = u.trim(); if (u.includes('@')) return u; const {data, error} = await this.sb.rpc('hn_login_email', {p_username: u}); if (error) throw error; if (!data) throw new Error('User name not found or not active.'); return data; },
+  async signIn(u, p) { const email = await this.emailFor(u); const {data, error} = await this.sb.auth.signInWithPassword({email, password: p}); if (error) throw new Error(error.message === 'Invalid login credentials' ? 'User name or password is not right.' : error.message); const me = await this.profile(data.user); if (!me.noProfile) { await DB.set('live:me:' + me.id, me); LS.set('lastUid', me.id); this.sb.rpc('hn_touch').then(() => {}, () => {}); } return me; },
+  async signOut() { LS.set('lastUid', ''); await this.sb.auth.signOut(); },
+  async setPassword(pw) { const {error} = await this.sb.auth.updateUser({password: pw}); if (error) throw error; },
+  async reset(u) { const email = await this.emailFor(u); const {error} = await this.sb.auth.resetPasswordForEmail(email, {redirectTo: appUrl()}); if (error) throw error; },
+  async claimFirst(username, name) { const {error} = await this.sb.rpc('hn_claim_first_admin', {p_username: username, p_full_name: name}); if (error) throw error; },
+  async pull() {
+    const [st, cf, nt] = await Promise.all([
+      this.sb.from('hn_staff').select('*').order('full_name'),
+      this.sb.from('hn_config').select('key,data,updated_at'),
+      this.sb.from('hn_notes').select('*').order('updated_at', {ascending: false}).limit(1000)
+    ]);
+    if (st.error) throw st.error; if (cf.error) throw cf.error; if (nt.error) throw nt.error;
+    S.staff = st.data; await DB.set('live:staff', S.staff);
+    if (cf.data.length) { cf.data.forEach(r => { S.cfg[r.key] = r.data; }); await DB.set('live:cfg', S.cfg); }
+    else if (isAdmin()) { for (const k of Object.keys(S.cfg)) await this.saveConfig(k, S.cfg[k]); }
+    const seen = new Set();
+    nt.data.forEach(r => { seen.add(r.id); const l = S.notes[r.id];
+      if (!l) S.notes[r.id] = r;
+      else if ((!l._dirty && !l._queued && !l._deleted) || new Date(r.updated_at) > new Date(l.updated_at)) { Object.keys(l).forEach(k => delete l[k]); Object.assign(l, r); } // in place: the open editor keeps the same object
+    });
+    Object.values(S.notes).forEach(n => { if (!seen.has(n.id) && !n._dirty && !n._queued && !n._local) delete S.notes[n.id]; });
+    await saveNotes();
+  },
+  row(n) { return {id: n.id, section: n.section, kind: n.kind, owner: n.owner, pm: n.pm || null, status: n.status, title: n.title, project_no: n.project_no, data: n.data, pdf_path: n.pdf_path || null, submitted_at: n.submitted_at || null, reviewed_at: n.reviewed_at || null, reviewed_by: n.reviewed_by || null, created_at: n.created_at, updated_at: n.updated_at}; },
+  async write(n) { // insert new rows, update existing ones (an upsert would fire the insert trigger on existing rows)
+    const row = this.row(n);
+    let r = n._local ? await this.sb.from('hn_notes').insert(row) : await this.sb.from('hn_notes').update(row).eq('id', n.id);
+    if (r.error && n._local && r.error.code === '23505') r = await this.sb.from('hn_notes').update(row).eq('id', n.id);
+    if (r.error) throw r.error;
+    n._local = false;
+  },
+  async push() {
+    for (const n of Object.values(S.notes)) {
+      if (n._deleted) { const {error} = await this.sb.from('hn_notes').delete().eq('id', n.id); if (!error || error.code === 'PGRST116') delete S.notes[n.id]; continue; }
+      if (!n._dirty || n._queued) continue;
+      const stamp = n.updated_at; await this.write(n); if (n.updated_at === stamp) n._dirty = false; // edits made during the upload stay dirty
+    }
+    for (const item of S.outbox.slice()) {
+      const n = S.notes[item.id]; if (!n) { S.outbox = S.outbox.filter(o => o !== item); continue; }
+      const path = n.owner + '/' + n.id + '.pdf';
+      const up = await this.sb.storage.from('hn-pdfs').upload(path, item.pdf, {upsert: true, contentType: 'application/pdf'}); if (up.error) throw up.error;
+      n.pdf_path = path;
+      await this.write(n);
+      const r = await this.sb.functions.invoke('hn-submit', {body: {note_id: n.id}});
+      if (r.error) { let msg = r.error.message; try { msg = (await r.error.context.json()).error || msg; } catch (e) {} n.email_error = msg; throw new Error('Saved, but the email did not send: ' + msg); }
+      n._queued = false; n._dirty = false; n._local = false; n.emailed_at = r.data.emailed_at; n.email_error = null;
+      S.outbox = S.outbox.filter(o => o !== item);
+    }
+    await saveNotes(); await DB.set(key('outbox'), S.outbox);
+  },
+  async saveConfig(k, data) { S.cfg[k] = data; await DB.set('live:cfg', S.cfg); const {error} = await this.sb.from('hn_config').upsert({key: k, data, updated_at: new Date().toISOString(), updated_by: S.me.id}); if (error) throw error; },
+  async invite(st) { const r = await this.sb.functions.invoke('hn-admin', {body: {action: 'invite', staff: st, app_url: appUrl()}}); if (r.error) throw await fnErr(r.error); return r.data; },
+  async adminAction(action, payload) { const r = await this.sb.functions.invoke('hn-admin', {body: {action, ...payload, app_url: appUrl()}}); if (r.error) throw await fnErr(r.error); return r.data; },
+  async updateStaff(st) { const {error} = await this.sb.from('hn_staff').update({full_name: st.full_name, username: st.username, role: st.role, is_pm: st.is_pm, title: st.title || null, phone: st.phone || null}).eq('id', st.id); if (error) throw error; const i = S.staff.findIndex(x => x.id === st.id); S.staff[i] = st; await DB.set('live:staff', S.staff); },
+  async pdf(n) { const {data, error} = await this.sb.storage.from('hn-pdfs').download(n.pdf_path); if (error) throw error; return data; }
+};
+async function fnErr(e) { try { const j = await e.context.json(); return new Error(j.error || e.message); } catch (x) { return e; } }
+const B = () => S.mode === 'demo' ? Demo : Live;
+const appUrl = () => S.conf.appUrl || (location.origin + location.pathname);
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Could not load ' + src)); document.head.appendChild(s); }); }
+
+async function saveNotes() { await DB.set(key('notes'), S.notes); }
+let syncTimer = null;
+function queueSync(ms = 1500) { clearTimeout(syncTimer); syncTimer = setTimeout(sync, ms); }
+async function sync(manual) {
+  if (S.mode === 'demo' || !S.me || S.me.noProfile) return;
+  if (!S.online) { if (manual) toast('Offline – changes are kept on this device and will sync when you are back online.'); return; }
+  if (S.syncing) return; S.syncing = true; topbar();
+  try { await Live.push(); await Live.pull(); S.lastSync = new Date().toISOString(); LS.set('lastSync', S.lastSync); if (manual) toast('Synced'); }
+  catch (e) { console.warn(e); toast(e.message || String(e)); }
+  finally { S.syncing = false; topbar(); if (['list','home'].includes(S.view) || (S.view === 'plan' && (!S.notes[S.param] || P !== S.notes[S.param] || !canEdit(S.notes[S.param])))) { const y = scrollY; render(); scrollTo(0, y); } }
+}
+
+/* ---------- UI helpers ---------- */
+function toast(msg, ms = 3500) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+function modal(html, cls = '') { const l = $('#layer'); l.innerHTML = `<div class="scrim" data-close-scrim><div class="modal ${cls}" role="dialog" aria-modal="true">${html}</div></div>`; const first = $('.modal input,.modal select,.modal textarea,.modal button', l); if (first && WIDE()) first.focus(); return $('.modal', l); }
+function closeModal() { $('#layer').innerHTML = ''; }
+function ask(title, msg, okText = 'OK', danger) { return new Promise(res => { const m = modal(`<h2>${esc(title)}</h2><p>${esc(msg)}</p><div class="row" style="justify-content:flex-end"><button class="btn" data-a="no">Cancel</button><button class="btn ${danger ? 'warn' : 'pri'}" data-a="yes">${esc(okText)}</button></div>`, 'narrow'); m.addEventListener('click', e => { const a = e.target.closest('[data-a]'); if (a) { closeModal(); res(a.dataset.a === 'yes'); } }); }); }
+async function saveFile(blob, filename) {
+  try { if (window.claude && window.claude.use) { const d = await window.claude.use('downloads'); if (d) { await d.save({filename, data: blob}); return; } } } catch (e) { console.warn(e); }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+}
+
+/* ---------- navigation ---------- */
+function go(view, param, replace) {
+  S.view = view; S.param = param ?? null;
+  try { history[replace ? 'replaceState' : 'pushState']({view, param: S.param}, ''); } catch (e) {}
+  render(); window.scrollTo(0, 0);
+}
+addEventListener('popstate', e => { if ($('#layer').innerHTML) { closeModal(); try { history.pushState({view: S.view, param: S.param}, ''); } catch (x) {} return; } const st = e.state || {view: 'home'}; S.view = st.view; S.param = st.param; render(); });
+
+function topbar() {
+  const t = $('#top');
+  if (!S.me || S.me.noProfile) { t.innerHTML = `<div class="brand">${logoHtml()}<span>Hive-Notes</span></div>`; return; }
+  const q = S.mode === 'demo' ? 0 : S.outbox.length + Object.values(S.notes).filter(n => n._dirty && !n._queued).length;
+  t.innerHTML = `<button class="brand" data-go="home" aria-label="Home">${logoHtml()}<span>Hive-Notes</span></button><div class="sp"></div>
+    ${S.mode === 'demo' ? '<span class="badge hide-sm">Demo mode</span>' : ''}
+    <span class="badge ${S.online ? '' : 'off'}" title="${S.online ? 'Connected' : 'No connection – working offline'}">${S.online ? (S.syncing ? 'Syncing…' : 'Online') : 'Offline'}${q ? ' · ' + q + ' waiting' : ''}</span>
+    <button class="iconbtn" data-act="menu" aria-label="Menu">☰</button>`;
+}
+const logoHtml = () => LOGO_IMG ? `<img src="${LOGO_IMG}" alt="Hive">` : LOGO_SVG;
+
+function render() {
+  topbar();
+  const app = $('#app');
+  if (S.needPassword && S.me) return viewSetPassword(app);
+  if (!S.me) return viewLogin(app);
+  if (S.me.noProfile) return viewNoProfile(app);
+  const v = VIEWS[S.view] || VIEWS.home; v(app);
+}
+
+/* ---------- login ---------- */
+function viewLogin(app) {
+  app.innerHTML = `<div class="login"><div class="logo">${logoHtml()}</div><h1 style="text-align:center">Hive-Notes</h1>
+  <p class="lead" style="text-align:center">Sign in with your Hive-Notes user name and password.</p>
+  ${S.mode === 'demo' ? '<div class="band small">Demo mode (no server set up). Sign in as <b>kwhite</b> (field staff) or <b>sschaller</b> (admin and PM). Any password works.</div>' : ''}
+  ${!S.online ? '<div class="band small">You are offline. The first sign-in on a device needs a connection; after that Hive-Notes works offline.</div>' : ''}
+  <form id="lf"><label class="f">User name<input type="text" id="lu" autocomplete="username" autocapitalize="none" required value="${esc(LS.get('lastUser') || '')}"></label>
+  <label class="f" style="margin-top:10px">Password<input type="password" id="lp" autocomplete="current-password" ${S.mode === 'demo' ? '' : 'required'}></label>
+  <p class="err" id="le"></p><button class="btn pri" style="width:100%">Sign in</button></form>
+  ${S.mode === 'live' ? '<p style="text-align:center"><button class="btn sm" id="forgot" type="button">Forgot password?</button></p>' : ''}
+  <p class="muted small" style="text-align:center">Version ${VERSION}</p></div>`;
+  $('#lf').onsubmit = async e => {
+    e.preventDefault(); const u = $('#lu').value, p = $('#lp').value; $('#le').textContent = '';
+    try { S.me = await B().signIn(u, p); LS.set('lastUser', u.trim()); await afterLogin(); }
+    catch (err) { $('#le').textContent = err.message || String(err); }
+  };
+  const f = $('#forgot'); if (f) f.onclick = async () => { const u = $('#lu').value.trim(); if (!u) { $('#le').textContent = 'Type your user name first.'; return; } try { await Live.reset(u); toast('A password reset link was emailed to you.'); } catch (err) { $('#le').textContent = err.message; } };
+}
+function viewSetPassword(app) {
+  app.innerHTML = `<div class="login"><div class="logo">${logoHtml()}</div><h1>Set your password</h1><p class="lead">Welcome${S.me.full_name ? ', ' + esc(S.me.full_name) : ''}. Choose a password for Hive-Notes. Your user name is <b>${esc(S.me.username || '')}</b>.</p>
+  <form id="pf"><label class="f">New password (8+ characters)<input type="password" id="p1" minlength="8" required autocomplete="new-password"></label>
+  <label class="f" style="margin-top:10px">Type it again<input type="password" id="p2" minlength="8" required autocomplete="new-password"></label><p class="err" id="pe"></p><button class="btn pri" style="width:100%">Save password</button></form></div>`;
+  $('#pf').onsubmit = async e => { e.preventDefault(); if ($('#p1').value !== $('#p2').value) { $('#pe').textContent = 'The two passwords do not match.'; return; } try { await Live.setPassword($('#p1').value); S.needPassword = false; history.replaceState(null, '', location.pathname); toast('Password saved'); render(); } catch (err) { $('#pe').textContent = err.message; } };
+}
+function viewNoProfile(app) {
+  app.innerHTML = `<div class="login"><h1>Almost there</h1><p>You are signed in as ${esc(S.me.email)}, but you are not on the Hive-Notes staff list yet.</p>
+  <p class="muted small">If this is a brand-new Hive-Notes setup with no staff yet, you can make yourself the first administrator.</p>
+  <label class="f">User name<input type="text" id="fu" autocapitalize="none"></label><label class="f" style="margin-top:8px">Full name<input type="text" id="fn"></label>
+  <p class="err" id="fe"></p><div class="row"><button class="btn pri" id="claim">Make me the first admin</button><button class="btn" data-act="signout">Sign out</button></div></div>`;
+  $('#claim').onclick = async () => { try { await Live.claimFirst($('#fu').value.trim().toLowerCase(), $('#fn').value.trim()); S.me = await Live.restore(); await afterLogin(); } catch (e) { $('#fe').textContent = e.message; } };
+}
+async function afterLogin() {
+  if (S.me.noProfile) return render();
+  S.cfg = (await DB.get(key('cfg'))) || seedConfig();
+  for (const [k, v] of Object.entries(seedConfig())) if (S.cfg[k] == null) S.cfg[k] = v;
+  S.cfg.texts = {...DEFAULT_TEXTS, ...(S.cfg.texts || {})};
+  S.staff = (await DB.get(key('staff'))) || S.staff || [];
+  S.notes = (await DB.get(key('notes'))) || {};
+  S.outbox = (await DB.get(key('outbox'))) || [];
+  if (S.mode === 'demo' && !Object.keys(S.notes).length) seedDemoNotes();
+  const want = new URLSearchParams(location.search).get('note');
+  go(want ? 'plan' : 'home', want || null, true);
+  sync();
+}
+
+/* ---------- home ---------- */
+const ICONS = {
+  safety: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.4 9.3 8 11 4.6-1.7 8-6 8-11V5z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>',
+  hazmat: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/></svg>',
+  esa: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>',
+  observation: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  admin: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M19 8v6M16 11h6"/></svg>'
+};
+function viewHome(app) {
+  const mine = Object.values(S.notes).filter(n => n.owner === S.me.id && !n._deleted);
+  const drafts = mine.filter(n => n.status === 'draft').length;
+  const toReview = Object.values(S.notes).filter(n => n.pm === S.me.id && n.status === 'submitted' && !n._deleted).length;
+  const sec = (key, title, desc, live, chips = '') => live
+    ? `<button class="tile sec" data-go="list" data-sec="${key}"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="row">${chips}</span></button>`
+    : `<div class="tile sec soon" aria-disabled="true"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="chip">Coming later</span></div>`;
+  app.innerHTML = `<h1>Hi ${esc((S.me.full_name || '').split(' ')[0])}</h1><p class="lead">Choose a section.</p>
+  <div class="secs">
+    ${sec('safety', 'Safety', 'Health &amp; Safety Plan and Hazard Assessment, signed on the screen and emailed to the project manager.', true,
+      (drafts ? `<span class="chip draft">${drafts} draft${drafts > 1 ? 's' : ''}</span>` : '') + (toReview ? `<span class="chip submitted">${toReview} to review</span>` : ''))}
+    ${sec('esa', 'Phase I ESA', 'Site visit notes for Phase I Environmental Site Assessments.', false)}
+    ${sec('hazmat', 'HazMat', 'Hazardous materials survey notes.', false)}
+    ${sec('observation', 'Observation', 'Site observation notes.', false)}
+  </div>
+  <div class="row" style="margin-top:18px">${isAdmin() ? '<button class="btn" data-go="admin">Admin</button>' : ''}<button class="btn" data-go="library">Activities &amp; hazards library</button><button class="btn" data-go="docs">SOP / SWP documents</button></div>
+  ${S.mode === 'demo' ? `<div class="band small"><b>Demo mode.</b> Nothing is sent and the sample people are made up. Switch who you are viewing as from the ☰ menu to see the field, PM and admin views.</div>` : ''}`;
+}
+
+/* ---------- safety list ---------- */
+function noteLabel(n) { return n._queued ? ['queued', 'Waiting to send'] : n.status === 'reviewed' ? ['reviewed', 'Reviewed'] : n.status === 'submitted' ? ['submitted', 'Submitted'] : ['draft', 'Draft']; }
+function viewList(app) {
+  const tab = S.param || 'mine';
+  const all = Object.values(S.notes).filter(n => !n._deleted && n.section === 'safety');
+  const sets = {
+    mine: all.filter(n => n.owner === S.me.id),
+    review: all.filter(n => n.pm === S.me.id && n.owner !== S.me.id),
+    all: all
+  };
+  const list = (sets[tab] || sets.mine).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  const q = (LS.get('listq') || '').toLowerCase();
+  const shown = list.filter(n => !q || [n.title, n.project_no, n.data && n.data.address, (staffById(n.owner) || {}).full_name].join(' ').toLowerCase().includes(q));
+  app.innerHTML = `<button class="btn sm" data-go="home">← Sections</button><div class="row" style="justify-content:space-between"><h1>Safety – hazard assessments</h1><button class="btn pri" data-act="newplan">+ New safety plan</button></div>
+  <div class="tabs"><button class="tab ${tab === 'mine' ? 'on' : ''}" data-go="list" data-p="mine">My plans</button>
+  ${S.me.is_pm || isAdmin() ? `<button class="tab ${tab === 'review' ? 'on' : ''}" data-go="list" data-p="review">Sent to me (${sets.review.filter(n => n.status === 'submitted').length})</button>` : ''}
+  ${isAdmin() ? `<button class="tab ${tab === 'all' ? 'on' : ''}" data-go="list" data-p="all">All plans</button>` : ''}</div>
+  <input type="search" id="lq" placeholder="Search title, project number, address, person" value="${esc(LS.get('listq') || '')}" style="max-width:420px">
+  <div class="list" style="margin-top:10px">${shown.length ? shown.map(n => { const [c, t] = noteLabel(n); const o = staffById(n.owner), p = staffById(n.pm);
+    return `<button class="item" data-go="plan" data-p="${esc(n.id)}"><div class="grow"><div class="t">${esc(n.title || 'Untitled plan')}${n.project_no ? ' · ' + esc(n.project_no) : ''}</div>
+    <div class="muted small">${esc((n.data && n.data.address) || '')}${tab !== 'mine' && o ? ' · by ' + esc(o.full_name) : ''}${p ? ' · PM ' + esc(p.full_name) : ''} · ${fmtDT(n.updated_at)}</div>${n.email_error && n._queued ? `<div class="err small">${esc(n.email_error)}</div>` : ''}</div><span class="chip ${c}">${t}</span></button>`; }).join('')
+    : `<div class="empty">${tab === 'mine' ? 'No safety plans yet. Start one with “New safety plan”.' : 'Nothing here.'}</div>`}</div>`;
+  $('#lq').oninput = e => { LS.set('listq', e.target.value); const pos = e.target.selectionStart; viewList(app); const i = $('#lq'); i.focus(); i.setSelectionRange(pos, pos); };
+}
+function newPlan(from) {
+  const id = uid(), now = new Date().toISOString();
+  const d = from ? clone(from.data) : {};
+  const data = Object.assign({title: '', projectNo: '', date: today(), address: '', activities: '', subActivities: '', subOwn: false, subHive: false, community: '', emergency: {}, contacts: {client: '', fieldRep: S.me.full_name, safety: '', gc: '', sub: '', subcon: '', other: ''}, rows: [], violence: null, template: '', crew: []}, d);
+  data.date = today(); data.sign1 = null; data.sign2 = null; data.crew = []; data.contacts.fieldRep = S.me.full_name; data.submittedBy = null;
+  const n = {id, section: 'safety', kind: 'hazard_assessment', owner: S.me.id, pm: from ? from.pm : null, status: 'draft', title: data.title, project_no: data.projectNo, data, created_at: now, updated_at: now, _dirty: true, _local: true};
+  S.notes[id] = n; saveNotes(); go('plan', id);
+}
+
+/* ---------- plan editor ---------- */
+let P = null; // current note
+let saveT = null;
+function touch() { if (!P) return; P.updated_at = new Date().toISOString(); P.title = P.data.title; P.project_no = P.data.projectNo; P._dirty = true; clearTimeout(saveT); saveT = setTimeout(async () => { await saveNotes(); topbar(); queueSync(2500); }, 500); }
+const canEdit = n => n.owner === S.me.id && n.status === 'draft';
+function viewPlan(app) {
+  P = S.notes[S.param];
+  if (!P) { app.innerHTML = `<div class="empty">${S.syncing || (S.online && S.mode === 'live' && !S.lastSync) ? 'Loading the plan…' : 'This plan isn’t on this device' + (S.online ? ' or you don’t have access to it' : ' and you are offline') + '.'}</div><p><button class="btn" data-go="list">Back to list</button></p>`; return; }
+  const step = Number(LS.get('step:' + P.id) || 1);
+  const ed = canEdit(P);
+  const [c, t] = noteLabel(P);
+  const d = P.data;
+  app.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-start"><div><button class="btn sm" data-go="list">← Plans</button>
+    <h1>${esc(d.title || 'New safety plan')}</h1><div class="row small muted"><span class="chip ${c}">${t}</span>${d.projectNo ? esc(d.projectNo) + ' · ' : ''}${esc((staffById(P.owner) || {}).full_name || '')}${P.submitted_at ? ' · submitted ' + fmtDT(P.submitted_at) : ''}${P.emailed_at ? ' · emailed' : ''}${P.reviewed_at ? ' · reviewed ' + fmtDT(P.reviewed_at) + ' by ' + esc((staffById(P.reviewed_by) || {}).full_name || '') : ''}</div></div>
+    <div class="row">${planActions(P)}</div></div>
+  ${!ed && P.status !== 'draft' ? `<div class="band small">This plan has been submitted and is read-only.${P.owner === S.me.id && P.status === 'submitted' ? ' Use “Reopen to edit” to change it and send it again.' : ''}</div>` : ''}
+  <div class="steps" role="tablist"><button class="${step === 1 ? 'on' : ''}" data-step="1">1 · Project info</button><button class="${step === 2 ? 'on' : ''}" data-step="2">2 · Hazard assessment</button><button class="${step === 3 ? 'on' : ''}" data-step="3">3 · ${ed ? 'Review &amp; submit' : 'Summary'}</button></div>
+  <form id="pform" onsubmit="return false">${step === 1 ? stepInfo(P, ed) : step === 2 ? stepHazards(P, ed) : stepSubmit(P, ed)}</form>`;
+  if (!ed) $$('#pform input,#pform select,#pform textarea').forEach(i => i.disabled = true);
+  $$('#pform textarea').forEach(autoGrow);
+  initPads(ed);
+}
+function planActions(n) {
+  const out = [];
+  if (n.pm === S.me.id && n.status === 'submitted') out.push('<button class="btn go" data-act="reviewed">Mark reviewed</button>');
+  if (n.owner === S.me.id && n.status === 'submitted' && !n._queued) out.push('<button class="btn" data-act="reopen">Reopen to edit</button>');
+  if (n.status !== 'draft') out.push('<button class="btn" data-act="pdf">PDF</button>');
+  out.push('<button class="btn" data-act="dup">Copy to new plan</button>');
+  if ((n.owner === S.me.id && n.status === 'draft') || isAdmin()) out.push('<button class="btn warn" data-act="delplan">Delete</button>');
+  return out.join('');
+}
+const fld = (label, path, val, opt = {}) => `<label class="f">${esc(label)}${opt.req ? ' <span class="req">*</span>' : ''}${opt.ta ? `<textarea data-f="${path}" rows="${opt.rows || 3}">${esc(val)}</textarea>` : `<input type="${opt.type || 'text'}" data-f="${path}" value="${esc(val)}" ${opt.list ? `list="${opt.list}"` : ''}>`}</label>`;
+function stepInfo(n, ed) {
+  const d = n.data, T = S.cfg.texts, E = S.cfg.emergency;
+  const showAll = LS.get('emergAll') === '1';
+  const fields = showAll ? E.fields : E.fields.filter(f => CORE_EMERG.includes(f) || (d.emergency[f] || '').trim());
+  return `<div class="card"><h2 style="margin-top:0">Project</h2><div class="grid2">
+   ${fld('Proposal / project title', 'title', d.title, {req: 1})}${fld('Proposal / project #', 'projectNo', d.projectNo, {req: 1})}
+   <label class="f">Proposal / project manager <span class="req">*</span><select data-pm>${['<option value="">Choose…</option>', ...pms().map(s => `<option value="${esc(s.id)}" ${s.id === n.pm ? 'selected' : ''}>${esc(s.full_name)}</option>`)].join('')}</select></label>
+   ${fld('Date', 'date', d.date, {type: 'date'})}</div>
+   <div style="margin-top:12px">${fld('Civic address / project location', 'address', d.address, {req: 1})}</div></div>
+  <p class="note">${esc(T.purpose)}</p>
+  <div class="card"><h2 style="margin-top:0">Proposal / project information</h2><div class="grid2">${fld('Describe project activities', 'activities', d.activities, {ta: 1})}${fld('Describe subcontractor activities', 'subActivities', d.subActivities, {ta: 1})}</div>
+   <p class="callout">${esc(T.subDeclaration)}</p>
+   <div class="row"><label class="chk"><input type="checkbox" data-f="subOwn" ${d.subOwn ? 'checked' : ''}> Subcontractors are following their own H&amp;S Program</label><label class="chk"><input type="checkbox" data-f="subHive" ${d.subHive ? 'checked' : ''}> Subcontractors are following Hive’s H&amp;S Program</label></div>
+   <p class="note"><i>${esc(T.subNote)}</i></p></div>
+  <details class="card"><summary>Accident / incident investigations</summary><p class="note">${esc(T.accident)}</p></details>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Emergency contacts</h2>
+   <label class="f" style="min-width:240px">Community (fills in the numbers)<select data-comm><option value="">Choose…</option>${E.communities.map(c => `<option value="${esc(c.id)}" ${c.id === d.community ? 'selected' : ''}>${esc(c.city)}, ${esc(c.prov)}</option>`).join('')}</select></label></div>
+   <div class="grid3" style="margin-top:10px">${fields.map(f => `<label class="f">${esc(f)}<input type="text" data-em="${esc(f)}" value="${esc(d.emergency[f] || '')}"></label>`).join('')}</div>
+   <label class="chk small"><input type="checkbox" data-act="emergAll" ${showAll ? 'checked' : ''}> Show all contact types</label></div>
+  <div class="card"><h2 style="margin-top:0">Project contacts</h2><div class="grid2">
+   ${fld('Client', 'contacts.client', d.contacts.client)}<label class="f">Proposal / project manager<input type="text" value="${esc((staffById(n.pm) || {}).full_name || '')}" disabled></label>
+   ${fld('Field rep', 'contacts.fieldRep', d.contacts.fieldRep)}${fld('Safety coordinator', 'contacts.safety', d.contacts.safety)}
+   ${fld('General contractor', 'contacts.gc', d.contacts.gc)}${fld('Subcontractor', 'contacts.sub', d.contacts.sub)}
+   ${fld('Subconsultant', 'contacts.subcon', d.contacts.subcon)}${fld('Other', 'contacts.other', d.contacts.other)}</div></div>
+  ${signBlock('sign1', 'Page 1 sign-off', T.signP1, d.sign1, ed)}
+  <div class="sticky-actions"><button class="btn pri" data-step="2">Next: hazard assessment →</button></div>`;
+}
+function stepHazards(n, ed) {
+  const d = n.data, T = S.cfg.texts;
+  const resps = [...new Set(S.cfg.library.map(x => x.resp).filter(Boolean))];
+  return `<div class="band"><b>${esc(d.title || 'Untitled')}</b> · ${esc(d.projectNo)} · PM ${esc((staffById(n.pm) || {}).full_name || '—')} · ${fmtD(d.date)}</div>
+  ${ed ? `<div class="row"><button class="btn pri" data-act="pick">+ New activity or hazard</button><button class="btn" data-act="tpl">Load template</button><button class="btn" data-act="blank">Add blank row</button>${isAdmin() && d.rows.length ? '<button class="btn" data-act="savetpl">Save rows as template</button>' : ''}</div>` : ''}
+  <datalist id="resps">${resps.map(r => `<option value="${esc(r)}">`).join('')}</datalist>
+  <div class="hz-head"><span>#</span><span>Activity / hazard</span><span>Hazard description</span><span>Responsibility</span><span>Risk level</span><span>Control measures</span><span>Residual risk</span><span></span></div>
+  <div id="rows">${d.rows.length ? d.rows.map((r, i) => hzRow(r, i, ed)).join('') : `<div class="empty">No activities or hazards yet. Tap <b>New activity or hazard</b> to pick from the library, or load a template.</div>`}</div>
+  <div class="card"><h3 style="margin-top:0">Notes</h3><p class="note">${esc(T.notes)}</p>
+   <p style="font-weight:700;margin-bottom:4px">${esc(T.violence)} <span class="req" style="color:var(--ext)">*</span></p>
+   <div class="row"><label class="chk"><input type="radio" name="vio" data-vio="yes" ${d.violence === true ? 'checked' : ''}> Yes</label><label class="chk"><input type="radio" name="vio" data-vio="no" ${d.violence === false ? 'checked' : ''}> No</label></div>
+   ${d.violence === true ? '<p class="callout">Contact your local safety coordinator or manager for additional follow-up before work starts.</p>' : ''}</div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">Crew acknowledgement</h3>${ed ? '<button class="btn sm" data-act="addcrew">+ Add person</button>' : ''}</div>
+   <p class="muted small">Optional: other staff going to site can read the assessment and sign here (note 3).</p>
+   ${(d.crew || []).map((c, i) => `<div class="sign" style="margin:10px 0"><div class="row" style="justify-content:space-between"><label class="f" style="flex:1">Name<input type="text" data-crew="${i}" value="${esc(c.name)}"></label>${ed ? `<button class="btn sm warn" data-act="delcrew" data-i="${i}">Remove</button>` : ''}</div>${padHtml('crew.' + i, c.sig, ed)}</div>`).join('')}</div>
+  ${signBlock('sign2', 'Page 2 sign-off', T.signP2, d.sign2, ed)}
+  <div class="sticky-actions"><button class="btn" data-step="1">← Project info</button><button class="btn pri" data-step="3">Next: ${ed ? 'review &amp; submit' : 'summary'} →</button></div>`;
+}
+function hzRow(r, i, ed) {
+  return `<div class="hz" data-row="${i}"><div class="num"><span>${i + 1}</span>${ed ? `<span class="row" style="gap:2px"><button type="button" class="btn sm" data-act="up" data-i="${i}" aria-label="Move up" ${i ? '' : 'disabled'}>↑</button></span>` : ''}</div>
+   <div><label class="f"><span class="lbl">Activity / hazard</span><input type="text" data-r="${i}" data-k="name" value="${esc(r.name)}"></label><input type="text" class="task" data-r="${i}" data-k="task" value="${esc(r.task || '')}" placeholder="Task involved (optional)" aria-label="Task involved"></div>
+   <label class="f"><span class="lbl">Hazard description</span><textarea data-r="${i}" data-k="desc" rows="2">${esc(r.desc)}</textarea></label>
+   <label class="f"><span class="lbl">Responsibility</span><input type="text" list="resps" data-r="${i}" data-k="resp" value="${esc(r.resp)}"></label>
+   <div class="rk"><div><span class="lbl">Risk level</span>${riskBtn(r.risk, `data-act="risk" data-i="${i}" data-k="risk" ${ed ? '' : 'disabled'}`)}</div></div>
+   <label class="f"><span class="lbl">Control measures</span><textarea data-r="${i}" data-k="control" rows="2">${esc(r.control)}</textarea><span data-docs="${i}">${docChips(r.control)}</span></label>
+   <div class="rk"><div><span class="lbl">Residual risk</span>${riskBtn(r.residual, `data-act="risk" data-i="${i}" data-k="residual" ${ed ? '' : 'disabled'}`)}</div></div>
+   <div>${ed ? `<button type="button" class="btn sm warn" data-act="delrow" data-i="${i}" aria-label="Remove row ${i + 1}">✕</button>` : ''}</div>
+   <details class="more" ${r.due || r.done ? 'open' : ''}><summary class="small muted">Completion dates</summary><div class="grid3">
+    <label class="f">Completion date for control measure<input type="date" data-r="${i}" data-k="due" value="${esc(r.due || '')}"></label>
+    <label class="f">Date completed<input type="date" data-r="${i}" data-k="done" value="${esc(r.done || '')}"></label></div></details></div>`;
+}
+function signBlock(path, title, text, val, ed) {
+  return `<div class="sign" id="sb-${path}"><h3>${esc(title)}</h3><p class="small muted" style="margin:0 0 6px">${esc(text)}</p>
+   <div class="grid2"><label class="f">Name<input type="text" data-sn="${path}" value="${esc((val && val.name) || (ed ? S.me.full_name : ''))}"></label>
+   <div class="small muted" style="align-self:end">${val && val.at ? 'Signed ' + fmtDT(val.at) : 'Sign with your finger, a stylus or the mouse.'}</div></div>
+   ${padHtml(path, val && val.sig, ed)}</div>`;
+}
+function padHtml(path, sig, ed) {
+  if (!ed) return sig ? `<div class="signed" style="margin-top:8px"><img src="${esc(sig)}" alt="Signature"></div>` : '<p class="muted small">Not signed.</p>';
+  return `<div class="pad" data-pad="${path}"><canvas></canvas><div class="line"></div><div class="hint">Sign above the line</div></div><div class="row" style="margin-top:6px"><button type="button" class="btn sm" data-act="clearpad" data-p="${path}">Clear</button></div>`;
+}
+function getPath(o, p) { return p.split('.').reduce((a, k) => a == null ? a : a[k], o); }
+function setPath(o, p, v) { const ks = p.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => (a[k] = a[k] ?? {}), o); t[last] = v; }
+function sigTarget(path) { // returns object holding {sig, at, name}
+  if (path.startsWith('crew.')) return P.data.crew[Number(path.split('.')[1])];
+  P.data[path] = P.data[path] || {name: S.me.full_name, sig: null, at: null}; return P.data[path];
+}
+function initPads(ed) {
+  if (!ed) return;
+  $$('.pad').forEach(pad => {
+    const path = pad.dataset.pad, cv = $('canvas', pad), ctx = cv.getContext('2d');
+    const size = () => { const r = pad.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0F2A36'; ctx.lineWidth = 2.4; const t = getPath(P.data, path) || (path.startsWith('crew.') ? P.data.crew[+path.split('.')[1]] : null); const src = t && t.sig; if (src) { const im = new Image(); im.onload = () => ctx.drawImage(im, 0, 0, r.width, r.height); im.src = src; } };
+    size();
+    let drawing = false, last = null, inked = false;
+    const pt = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    cv.addEventListener('pointerdown', e => { drawing = true; last = pt(e); cv.setPointerCapture(e.pointerId); ctx.beginPath(); ctx.arc(last[0], last[1], 1.1, 0, 7); ctx.fillStyle = '#0F2A36'; ctx.fill(); inked = true; e.preventDefault(); });
+    cv.addEventListener('pointermove', e => { if (!drawing) return; const p = pt(e); const w = e.pressure && e.pointerType === 'pen' ? 1.4 + e.pressure * 2.2 : 2.4; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(last[0], last[1]); ctx.lineTo(p[0], p[1]); ctx.stroke(); last = p; e.preventDefault(); });
+    const end = () => { if (!drawing) return; drawing = false; if (!inked) return;
+      const r = pad.getBoundingClientRect(), out = document.createElement('canvas'); out.width = 600; out.height = Math.round(600 * r.height / r.width); const o = out.getContext('2d'); o.fillStyle = '#fff'; o.fillRect(0, 0, out.width, out.height); o.drawImage(cv, 0, 0, out.width, out.height);
+      const t = sigTarget(path); t.sig = out.toDataURL('image/png'); t.at = new Date().toISOString(); if (!path.startsWith('crew.')) { const nm = $(`[data-sn="${path}"]`); t.name = nm ? nm.value : S.me.full_name; } touch(); };
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('pointerleave', end);
+  });
+}
+function autoGrow(t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 420) + 'px'; }
+
+function problems(n) {
+  const d = n.data, p = [];
+  if (!d.title.trim()) p.push([1, 'Project title']);
+  if (!d.projectNo.trim()) p.push([1, 'Project number']);
+  if (!n.pm) p.push([1, 'Project manager to send it to']);
+  if (!d.address.trim()) p.push([1, 'Civic address / location']);
+  if (!d.sign1 || !d.sign1.sig) p.push([1, 'Page 1 signature']);
+  if (!d.rows.length) p.push([2, 'At least one activity or hazard']);
+  d.rows.forEach((r, i) => { const m = []; if (!r.name.trim()) m.push('name'); if (!normCode(r.risk)) m.push('risk level'); if (!r.control.trim()) m.push('control measures'); if (!normCode(r.residual)) m.push('residual risk'); if (m.length) p.push([2, `Row ${i + 1}: ${m.join(', ')}`]); });
+  if (d.violence == null) p.push([2, 'Answer the heightened-risk-of-violence question']);
+  (d.crew || []).forEach((c, i) => { if (!c.name.trim() || !c.sig) p.push([2, `Crew acknowledgement ${i + 1}: name and signature`]); });
+  if (!d.sign2 || !d.sign2.sig) p.push([2, 'Page 2 signature']);
+  return p;
+}
+function stepSubmit(n, ed) {
+  const d = n.data, pm = staffById(n.pm), pr = problems(n);
+  const counts = LEVELS.map(l => [l, d.rows.filter(r => levelOf(r.risk) === l).length, d.rows.filter(r => levelOf(r.residual) === l).length]);
+  const codes = [...new Set(d.rows.flatMap(r => docCodes(r.control)))].sort((a, b) => docSort({code: a}, {code: b})); const dm = docMap();
+  return `<div class="grid2"><div class="card"><h2 style="margin-top:0">${ed ? 'Before you submit' : 'Summary'}</h2>
+    ${ed ? (pr.length ? `<ul class="check">${pr.map(([s, m]) => `<li class="no">✕ ${esc(m)} <button type="button" class="btn sm" data-step="${s}">Go to page ${s}</button></li>`).join('')}</ul>` : '<p class="yes" style="color:#3c7d16;font-weight:700">✓ Everything needed is filled in and signed.</p>') : ''}
+    <table class="ed" style="max-width:420px"><thead><tr><th>Level</th><th>Risk</th><th>Residual</th></tr></thead><tbody>${counts.map(([l, a, b]) => `<tr><td><span class="risk ${l}" style="min-height:28px;min-width:70px">${LEVEL_NAME[l]}</span></td><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody></table>
+    ${d.rows.some(r => levelOf(r.residual) === 'Ext' || levelOf(r.residual) === 'High') ? '<p class="callout">Some residual risks are still High or Extreme. Review the control measures with the PM before work starts.</p>' : ''}
+    </div>
+   <div class="card"><h2 style="margin-top:0">Send to</h2>
+    <p><b>${pm ? esc(pm.full_name) : 'No project manager chosen'}</b>${pm ? `<br><span class="muted">${esc(pm.email)}</span>` : ''}</p>
+    <p class="muted small">The PDF (Health &amp; Safety Plan + Hazard Assessment) is emailed to the PM, with a copy to you. If you are offline it waits on this device and sends itself when you are back online.</p>
+    ${ed ? `<div class="row"><button type="button" class="btn" data-act="preview">Preview PDF</button><button type="button" class="btn pri" data-act="submit" ${pr.length ? 'disabled' : ''}>Submit to PM</button></div>` : `<div class="row"><button type="button" class="btn" data-act="pdf">Download PDF</button></div>`}
+   </div></div>
+   ${codes.length ? `<div class="card"><h3 style="margin-top:0">SOP / SWP documents referenced</h3><div class="docs">${codes.map(c => { const x = dm[c]; return x && /^https:\/\//i.test(x.url || '') ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(c)}${x.title ? ' – ' + esc(x.title) : ''} ↗</a>` : `<span>${esc(c)}${x && x.title ? ' – ' + esc(x.title) : ''} (no link yet)</span>`; }).join('')}</div></div>` : ''}
+   <div class="sticky-actions"><button class="btn" data-step="2">← Hazard assessment</button></div>`;
+}
+
+/* pickers */
+function openPicker() {
+  const used = new Set(P.data.rows.map(r => r.libId).filter(Boolean));
+  let loc = LS.get('pickLoc') || 'Field', q = '';
+  const sel = new Set();
+  const m = modal(`<div class="mhead"><h2>Pick activity or hazard</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <div class="row"><div class="tabs" id="locs">${['Field', 'Lab', 'Office', 'All'].map(l => `<button type="button" class="tab ${l === loc ? 'on' : ''}" data-loc="${l}">${l}</button>`).join('')}</div><input type="search" id="pq" placeholder="Search" style="max-width:260px;margin:0"></div>
+   <div id="opts"></div><div class="sticky-actions"><span class="muted small" id="selc" style="margin-right:auto">Tap one or more, then Add.</span><button class="btn" data-x>Cancel</button><button class="btn pri" id="addsel" disabled>Add</button></div>`);
+  const draw = () => {
+    const lib = S.cfg.library.filter(x => x.active !== false && (loc === 'All' || x.loc === loc) && (!q || (x.name + ' ' + x.desc).toLowerCase().includes(q)));
+    const grp = k => lib.filter(x => x.kind === k).map(x => `<button type="button" class="opt ${k === 'Activity' ? 'act' : 'haz'} ${sel.has(x.id) ? 'sel' : ''} ${used.has(x.id) ? 'used' : ''}" data-id="${esc(x.id)}" title="${esc(x.desc)}">${esc(x.name)}${used.has(x.id) ? ' ✓' : ''}</button>`).join('') || '<p class="muted small">None</p>';
+    $('#opts', m).innerHTML = `<div class="pick"><div><h3>Activities</h3><div class="opts">${grp('Activity')}</div></div><div><h3>Hazards</h3><div class="opts">${grp('Hazard')}</div></div></div>`;
+    $('#selc', m).textContent = sel.size ? sel.size + ' selected' : 'Tap one or more, then Add. ✓ = already in this plan.';
+    $('#addsel', m).disabled = !sel.size; $('#addsel', m).textContent = sel.size ? `Add ${sel.size}` : 'Add';
+  };
+  draw();
+  m.addEventListener('click', e => {
+    const o = e.target.closest('.opt'); if (o) { sel.has(o.dataset.id) ? sel.delete(o.dataset.id) : sel.add(o.dataset.id); draw(); return; }
+    const l = e.target.closest('[data-loc]'); if (l) { loc = l.dataset.loc; LS.set('pickLoc', loc); $$('[data-loc]', m).forEach(b => b.classList.toggle('on', b === l)); draw(); return; }
+    if (e.target.closest('[data-x]')) closeModal();
+    if (e.target.id === 'addsel') { S.cfg.library.filter(x => sel.has(x.id)).forEach(x => P.data.rows.push({libId: x.id, name: x.name, desc: x.desc, resp: x.resp, risk: x.risk, control: x.control, residual: x.residual, task: '', due: '', done: ''})); touch(); closeModal(); render(); toast(sel.size + ' added – check the risk levels suit this site.'); }
+  });
+  $('#pq', m).oninput = e => { q = e.target.value.toLowerCase(); draw(); };
+}
+function openRisk(i, k) {
+  const cur = normCode(P.data.rows[i][k]);
+  const m = modal(`<div class="mhead"><h2>${k === 'risk' ? 'Risk level' : 'Residual risk'} – row ${i + 1}</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <p class="muted small">Pick the severity (row) and how likely it is (column). Ext = Extreme (imminent danger), High = serious, Med = moderate, Low = minor.</p>
+   ${matrixHtml(cur)}
+   <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" data-c="">Clear</button><button class="btn" data-x>Cancel</button></div>`);
+  m.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { P.data.rows[i][k] = b.dataset.c; touch(); closeModal(); render(); return; } if (e.target.closest('[data-x]')) closeModal(); });
+}
+function openTemplates() {
+  const m = modal(`<div class="mhead"><h2>Load template</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div><p class="muted small">Adds the template's rows to this plan (rows already in the plan stay).</p>
+   <div class="list">${S.cfg.templates.map(t => `<button class="item" data-t="${esc(t.id)}"><div class="grow"><div class="t">${esc(t.name)}</div><div class="muted small">${t.rows.map(r => esc(r.task || r.name)).slice(0, 4).join(' · ')}${t.rows.length > 4 ? ' …' : ''}</div></div><span class="chip">${t.rows.length} rows</span></button>`).join('')}</div>`, 'narrow');
+  m.addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) { const t = S.cfg.templates.find(x => x.id === b.dataset.t); t.rows.forEach(r => P.data.rows.push({...clone(r), due: '', done: ''})); P.data.template = t.name; touch(); closeModal(); render(); toast(`Loaded ${t.name}`); } if (e.target.closest('[data-x]')) closeModal(); });
+}
+
+/* plan editor events */
+document.addEventListener('input', e => {
+  const t = e.target; if (!P || S.view !== 'plan' || !t.closest('#pform')) return;
+  if (t.tagName === 'TEXTAREA') autoGrow(t);
+  if (t.dataset.f) { setPath(P.data, t.dataset.f, t.type === 'checkbox' ? t.checked : t.value); if (t.dataset.f === 'title') $('h1').textContent = t.value || 'New safety plan'; touch(); }
+  else if (t.dataset.r != null) { const i = +t.dataset.r; P.data.rows[i][t.dataset.k] = t.value; if (t.dataset.k === 'control') { const s = $(`[data-docs="${i}"]`); if (s) s.innerHTML = docChips(t.value); } touch(); }
+  else if (t.dataset.em) { P.data.emergency[t.dataset.em] = t.value; touch(); }
+  else if (t.dataset.sn) { sigTarget(t.dataset.sn).name = t.value; touch(); }
+  else if (t.dataset.crew != null) { P.data.crew[+t.dataset.crew].name = t.value; touch(); }
+});
+document.addEventListener('change', e => {
+  const t = e.target; if (!P || S.view !== 'plan' || !t.closest('#pform')) return;
+  if (t.matches('[data-pm]')) { P.pm = t.value || null; touch(); }
+  if (t.matches('[data-comm]')) { const c = S.cfg.emergency.communities.find(x => x.id === t.value); P.data.community = t.value; if (c) { P.data.emergency = {...c.v}; if (!P.data.address) {} } touch(); render(); }
+  if (t.dataset.vio) { P.data.violence = t.dataset.vio === 'yes'; touch(); render(); }
+});
+
+/* ---------- PDF ---------- */
+const RISK_FILL = {Ext: [198, 40, 40], High: [245, 124, 0], Med: [255, 223, 0], Low: [194, 214, 74]};
+function pdfLogo(doc, x, y, h) {
+  if (LOGO_IMG) { try { const p = doc.getImageProperties(LOGO_IMG); doc.addImage(LOGO_IMG, 'PNG', x, y, h * p.width / p.height, h); return; } catch (e) {} }
+  const r = h * 0.26, cols = [[194, 214, 74], [0, 173, 239], [255, 223, 0]];
+  [[0, 0], [1, 0], [0.5, 0.866]].forEach(([dx, dy], i) => { const cx = x + r + dx * r * 1.9, cy = y + r + dy * r * 1.9; const pts = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 180 * (60 * k - 30); pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } doc.setFillColor(...cols[i]); doc.setDrawColor(255); doc.setLineWidth(0.8); doc.lines(pts.slice(1).map((p, j) => [p[0] - pts[j][0], p[1] - pts[j][1]]), pts[0][0], pts[0][1], [1, 1], 'FD', true); });
+  doc.setTextColor(88, 89, 91); doc.setFont('helvetica', 'bold'); doc.setFontSize(h * 0.62); doc.text('hive', x + r * 4.2, y + h * 0.62); doc.setFontSize(h * 0.2); doc.text('ENGINEERING', x + r * 4.25, y + h * 0.9);
+}
+async function buildPdf(n) {
+  const {jsPDF} = window.jspdf; const doc = new jsPDF({orientation: 'landscape', unit: 'pt', format: 'letter', compress: true});
+  const d = n.data, T = S.cfg.texts, W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 36;
+  const pm = staffById(n.pm), owner = staffById(n.owner);
+  const navy = [15, 42, 54];
+  const head = (title) => {
+    pdfLogo(doc, M, 22, 34);
+    doc.setTextColor(...navy); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(title, W / 2, 46, {align: 'center'});
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.text('Hive-Notes · Safety', W - M, 34, {align: 'right'}); doc.text(d.projectNo || '', W - M, 46, {align: 'right'});
+    doc.setDrawColor(0, 173, 239); doc.setLineWidth(2); doc.line(M, 64, W - M, 64);
+  };
+  const kv = (pairs, y) => { doc.autoTable({startY: y, theme: 'plain', margin: {left: M, right: M}, styles: {fontSize: 9.2, cellPadding: 1.6, textColor: navy}, columnStyles: {0: {fontStyle: 'bold', cellWidth: 150}, 2: {fontStyle: 'bold', cellWidth: 120}}, body: pairs}); return doc.lastAutoTable.finalY; };
+  const para = (txt, y, opt = {}) => { opt.size = opt.size || 9; doc.setFont('helvetica', opt.bold ? 'bold' : (opt.italic ? 'italic' : 'normal')); doc.setFontSize(opt.size || 9); doc.setTextColor(...(opt.color || navy)); const lines = doc.splitTextToSize(txt, W - 2 * M); if (y + lines.length * (opt.size || 9) * 1.25 > H - 50) { doc.addPage(); y = 80; } doc.text(lines, opt.center ? W / 2 : M, y, {align: opt.center ? 'center' : 'left'}); return y + lines.length * (opt.size || 9) * 1.25 + 6; };
+  const bar = (txt, y) => { if (y > H - 90) { doc.addPage(); y = 80; } doc.setFillColor(229, 248, 255); doc.rect(M, y, W - 2 * M, 15, 'F'); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...navy); doc.text(txt, W / 2, y + 11, {align: 'center'}); return y + 21; };
+  const signBox = (title, txt, s, y) => {
+    const h = 76;
+    if (y + h > H - 26) { doc.addPage(); y = 80; }
+    doc.setDrawColor(...navy); doc.setLineWidth(1); doc.roundedRect(M, y, W - 2 * M, h, 6, 6);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...navy); doc.text(title, M + 10, y + 15);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.2); doc.text(doc.splitTextToSize(txt, 380), M + 10, y + 27);
+    doc.text('Name: ' + ((s && s.name) || '') + '     Signed: ' + (s && s.at ? fmtDT(s.at) : ''), M + 10, y + h - 10);
+    if (s && s.sig) { try { doc.addImage(s.sig, 'PNG', W - M - 220, y + 4, 210, 68); } catch (e) {} }
+    doc.setDrawColor(150); doc.line(W - M - 220, y + h - 8, W - M - 10, y + h - 8);
+    return y + h + 10;
+  };
+  // Page 1
+  head('HEALTH AND SAFETY PLAN');
+  let y;
+  y = kv([['Proposal/Project Title:', d.title, 'Date:', fmtD(d.date)], ['Proposal/Project Manager:', pm ? pm.full_name : '', 'Proposal/Project #:', d.projectNo], ['Civic Address/Location:', d.address, 'Prepared by:', owner ? owner.full_name : '']], 72);
+  y = para(T.purpose, y + 8, {size: 8.2});
+  y = bar('PROPOSAL / PROJECT INFORMATION', y);
+  doc.autoTable({startY: y, margin: {left: M, right: M}, theme: 'grid', styles: {fontSize: 9, textColor: navy, lineColor: [200, 215, 222]}, headStyles: {fillColor: [255, 255, 255], textColor: navy, fontStyle: 'bold'}, head: [['Describe Project Activities:', 'Describe Subcontractor Activities:']], body: [[d.activities || '', d.subActivities || '']]});
+  y = doc.lastAutoTable.finalY + 10;
+  y = para(T.subDeclaration, y, {bold: 1, size: 11, color: [198, 40, 40], center: 1});
+  y = para(`[${d.subOwn ? 'X' : '  '}] Subcontractors are following their own H&S Program        [${d.subHive ? 'X' : '  '}] Subcontractors are following Hive's H&S Program`, y, {center: 1});
+  y = para(T.subNote, y, {italic: 1, size: 8.5, center: 1});
+  y = bar('ACCIDENT / INCIDENT INVESTIGATIONS', y); y = para(T.accident, y, {size: 8.2});
+  y = bar('EMERGENCY CONTACTS' + (d.community ? ' – ' + ((S.cfg.emergency.communities.find(c => c.id === d.community) || {}).city || '') : ''), y);
+  const em = S.cfg.emergency.fields.filter(f => (d.emergency[f] || '').trim() || CORE_EMERG.slice(0, 4).includes(f)).map(f => [f + ':', d.emergency[f] || '']);
+  const half = Math.ceil(em.length / 2), emRows = []; for (let i = 0; i < half; i++) emRows.push([...(em[i] || ['', '']), ...(em[i + half] || ['', ''])]);
+  doc.autoTable({startY: y, theme: 'plain', margin: {left: M, right: M}, styles: {fontSize: 8.6, cellPadding: 1.6, textColor: navy}, columnStyles: {0: {fontStyle: 'bold', halign: 'right', cellWidth: 170}, 1: {textColor: [198, 40, 40]}, 2: {fontStyle: 'bold', halign: 'right', cellWidth: 190}, 3: {textColor: [198, 40, 40]}}, body: emRows});
+  y = doc.lastAutoTable.finalY + 6;
+  y = bar('PROJECT CONTACTS', y);
+  const c = d.contacts || {};
+  y = kv([['Client:', c.client || '', 'General Contractor:', c.gc || ''], ['Proposal/Project Manager:', pm ? pm.full_name : '', 'Subcontractor:', c.sub || ''], ['Field Rep:', c.fieldRep || '', 'Subconsultant:', c.subcon || ''], ['Safety Coordinator:', c.safety || '', 'Other:', c.other || '']], y) + 6;
+  signBox('Page 1 sign-off', T.signP1, d.sign1, y);
+  // Page 2
+  doc.addPage(); head('HAZARD ASSESSMENT FORM');
+  y = kv([['Proposal/Project Title:', d.title, 'Proposal/Project #:', d.projectNo], ['Proposal/Project Manager:', pm ? pm.full_name : '', 'Date:', fmtD(d.date)]], 76) + 6;
+  const rc = code => LEVELS.map(l => levelOf(code) === l ? normCode(code) : '');
+  doc.autoTable({
+    startY: y, margin: {left: M, right: M, top: 80}, theme: 'grid',
+    styles: {fontSize: 8, cellPadding: 3.5, textColor: navy, lineColor: [170, 190, 200], valign: 'middle'},
+    headStyles: {fillColor: [229, 248, 255], textColor: navy, fontStyle: 'bold', halign: 'center'},
+    head: [[{content: 'Activity / Hazard', rowSpan: 2}, {content: 'Hazard Description', rowSpan: 2}, {content: 'Responsibility', rowSpan: 2}, {content: 'Risk Level', colSpan: 4}, {content: 'Control Measures', rowSpan: 2}, {content: 'Residual Risk', colSpan: 4}], ['Ext', 'High', 'Med', 'Low', 'Ext', 'High', 'Med', 'Low']],
+    body: d.rows.map(r => [r.name + (r.task ? '\n(' + r.task + ')' : ''), r.desc, r.resp, ...rc(r.risk), r.control + (r.due || r.done ? `\nCompletion: ${r.due || '–'}  Completed: ${r.done || '–'}` : ''), ...rc(r.residual)]),
+    columnStyles: {0: {cellWidth: 105, fontStyle: 'bold', textColor: [198, 40, 40], halign: 'center'}, 1: {cellWidth: 175}, 2: {cellWidth: 62, halign: 'center'}, 3: {cellWidth: 25, halign: 'center'}, 4: {cellWidth: 25, halign: 'center'}, 5: {cellWidth: 25, halign: 'center'}, 6: {cellWidth: 25, halign: 'center'}, 7: {cellWidth: 'auto'}, 8: {cellWidth: 25, halign: 'center'}, 9: {cellWidth: 25, halign: 'center'}, 10: {cellWidth: 25, halign: 'center'}, 11: {cellWidth: 25, halign: 'center'}},
+    didParseCell: h => { if (h.section === 'body' && ((h.column.index >= 3 && h.column.index <= 6) || h.column.index >= 8) && h.cell.raw) { const l = MATRIX[h.cell.raw]; h.cell.styles.fillColor = RISK_FILL[l]; h.cell.styles.fontStyle = 'bold'; h.cell.styles.textColor = l === 'Ext' ? [255, 255, 255] : navy; } }
+  });
+  y = doc.lastAutoTable.finalY + 12;
+  y = para('NOTES:', y, {bold: 1}); y = para(T.notes, y, {size: 8.5});
+  y = para(T.violence + '   Answer: ' + (d.violence === true ? 'YES' : d.violence === false ? 'No' : '—'), y, {bold: d.violence === true, color: d.violence === true ? [198, 40, 40] : navy});
+  const codes = [...new Set(d.rows.flatMap(r => docCodes(r.control)))].sort((a, b) => docSort({code: a}, {code: b})); const dm = docMap();
+  if (codes.length) {
+    y = para('SOP / SWP documents referenced:', y + 4, {bold: 1});
+    codes.forEach(k => { const x = dm[k]; if (y > H - 50) { doc.addPage(); y = 80; } doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); const label = k + (x && x.title ? ' – ' + x.title : ''); if (x && /^https:\/\//i.test(x.url || '')) { doc.setTextColor(0, 114, 158); doc.textWithLink(label, M + 10, y, {url: x.url}); } else { doc.setTextColor(...navy); doc.text(label, M + 10, y); } y += 12; });
+    y += 6;
+  }
+  (d.crew || []).forEach((cw, i) => { y = signBox('Crew acknowledgement ' + (i + 1), 'I have reviewed this Hazard Assessment and understand the control measures.', {name: cw.name, sig: cw.sig, at: cw.at}, y); });
+  signBox('Page 2 sign-off', T.signP2, d.sign2, y);
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(110); doc.setFont('helvetica', 'normal'); doc.text(`${d.title || ''} – ${d.projectNo || ''} – Safety Plan · ${n.submitted_at ? 'Submitted ' + fmtDT(n.submitted_at) : 'Draft ' + fmtDT(new Date().toISOString())}`, M, H - 18); doc.text(`Page ${i} of ${pages}`, W - M, H - 18, {align: 'right'}); }
+  return doc.output('blob');
+}
+const pdfName = n => { const dt = (n.submitted_at || new Date().toISOString()).slice(2, 10); return `${n.data.title || 'Plan'} - ${n.data.projectNo || ''} - Safety Plan ${dt}.pdf`.replace(/[\\/:*?"<>|]/g, '-'); };
+
+async function submitPlan() {
+  const pr = problems(P); if (pr.length) { toast('Fill in the missing items first.'); return; }
+  const pm = staffById(P.pm);
+  if (!await ask('Submit safety plan?', `The plan will be emailed to ${pm.full_name} (${pm.email}) as a PDF, with a copy to you. You won’t be able to edit it unless you reopen it.`, 'Submit')) return;
+  P.status = 'submitted'; P.submitted_at = new Date().toISOString(); P.data.submittedBy = S.me.id; P.email_error = null; touch();
+  const blob = await buildPdf(P);
+  if (S.mode === 'demo') { P._dirty = false; await saveNotes(); render(); emailPreview(P, blob); return; }
+  P._queued = true; S.outbox = S.outbox.filter(o => o.id !== P.id); S.outbox.push({id: P.id, pdf: blob});
+  await DB.set(key('outbox'), S.outbox); await saveNotes(); render();
+  if (S.online) { toast('Sending…'); await sync(); const n = S.notes[P.id]; toast(n && !n._queued ? 'Submitted and emailed to ' + pm.full_name : (S.online ? 'Saved. It will retry sending.' : 'Saved on this device – it will send when you are online.'), 5000); render(); }
+  else toast('You are offline. The plan is saved and will send itself when you are back online.', 5000);
+}
+function emailPreview(n, blob) {
+  const pm = staffById(n.pm), me = staffById(n.owner), T = S.cfg.texts;
+  const m = modal(`<div class="mhead"><h2>Email that would be sent</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <div class="band small">Demo mode – nothing was sent. With the server set up this goes out automatically.</div>
+   <p><b>To:</b> ${esc(pm.full_name)} &lt;${esc(pm.email)}&gt;<br><b>Cc:</b> ${esc(me.full_name)} &lt;${esc(me.email)}&gt;<br><b>Subject:</b> ${esc(n.data.title)} - ${esc(n.data.projectNo)} - Safety Plan</p>
+   <div class="card note" style="color:var(--ink)">${esc(T.emailBody)}\n\nSubmitted by ${esc(me.full_name)} on ${esc(fmtDT(n.submitted_at))}.\nOpen in Hive-Notes: ${esc(appUrl())}?note=${esc(n.id)}</div>
+   <p><b>Attachment:</b> ${esc(pdfName(n))}</p><div class="row"><button class="btn pri" id="dl">Download the PDF</button><button class="btn" data-x>Close</button></div>`, 'narrow');
+  $('#dl', m).onclick = () => saveFile(blob, pdfName(n));
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
+}
+
+/* ---------- library (PC editable table) ---------- */
+let LIB = null; // working copy
+function viewLibrary(app) {
+  const canEditLib = isAdmin() && WIDE();
+  if (!LIB) LIB = clone(S.cfg.library);
+  const q = (LS.get('libq') || '').toLowerCase(), fk = LS.get('libk') || '', fl = LS.get('libl') || '';
+  const rows = LIB.map((x, i) => [x, i]).filter(([x]) => (!fk || x.kind === fk) && (!fl || x.loc === fl) && (!q || (x.name + ' ' + x.desc + ' ' + x.control).toLowerCase().includes(q)));
+  const dirty = JSON.stringify(LIB) !== JSON.stringify(S.cfg.library);
+  app.innerHTML = `<div class="row" style="justify-content:space-between"><div><button class="btn sm" data-go="${isAdmin() ? 'admin' : 'home'}">← Back</button><h1>Activities &amp; hazards library</h1></div></div>
+  <p class="lead">${canEditLib ? 'These rows fill in the hazard assessment when someone taps “New activity or hazard”. Edit any cell, then Save. SOP/SWP numbers typed in the control measures link to the documents list.' : isAdmin() ? 'Editing the library works on a PC (a wider screen). Here you can look it over.' : 'What the “New activity or hazard” button adds. Only admins can change it.'}</p>
+  <div class="toolbar"><input type="search" id="libq" placeholder="Search" value="${esc(LS.get('libq') || '')}">
+   <select id="libk"><option value="">Activities and hazards</option><option ${fk === 'Activity' ? 'selected' : ''}>Activity</option><option ${fk === 'Hazard' ? 'selected' : ''}>Hazard</option></select>
+   <select id="libl"><option value="">All locations</option>${['Field', 'Lab', 'Office'].map(l => `<option ${fl === l ? 'selected' : ''}>${l}</option>`).join('')}</select>
+   <span class="muted small">${rows.length} of ${LIB.length}</span><span style="flex:1"></span>
+   ${canEditLib ? `<button class="btn" data-act="libadd">+ Add row</button><button class="btn" data-go="docs">SOP / SWP links</button><button class="btn" data-act="libundo" ${dirty ? '' : 'disabled'}>Undo changes</button><button class="btn pri" data-act="libsave" ${dirty ? '' : 'disabled'}>Save library</button>` : ''}</div>
+  ${canEditLib ? `<div class="tblwrap"><table class="ed lib"><thead><tr><th style="min-width:170px">Activity / hazard</th><th style="min-width:112px">Type</th><th style="min-width:100px">Location</th><th style="min-width:260px">Hazard description</th><th style="min-width:110px">Responsibility</th><th>Risk</th><th style="min-width:260px">Control measures &amp; SOP/SWP</th><th>Residual</th><th>In use</th><th></th></tr></thead><tbody>
+   ${rows.map(([x, i]) => `<tr data-li="${i}"><td><textarea data-lk="name" rows="2">${esc(x.name)}</textarea></td>
+    <td><select data-lk="kind"><option ${x.kind === 'Activity' ? 'selected' : ''}>Activity</option><option ${x.kind === 'Hazard' ? 'selected' : ''}>Hazard</option></select></td>
+    <td><select data-lk="loc">${['Field', 'Lab', 'Office'].map(l => `<option ${x.loc === l ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+    <td><textarea data-lk="desc" rows="3">${esc(x.desc)}</textarea></td><td><input type="text" data-lk="resp" value="${esc(x.resp)}"></td>
+    <td>${riskBtn(x.risk, `data-act="librisk" data-i="${i}" data-k="risk"`)}</td>
+    <td><textarea data-lk="control" rows="3">${esc(x.control)}</textarea><span data-ldocs="${i}">${docChips(x.control)}</span></td>
+    <td>${riskBtn(x.residual, `data-act="librisk" data-i="${i}" data-k="residual"`)}</td>
+    <td><input type="checkbox" data-lk="active" ${x.active !== false ? 'checked' : ''} style="width:22px;height:22px" aria-label="In use"></td>
+    <td><button class="btn sm warn" data-act="libdel" data-i="${i}" aria-label="Delete">✕</button></td></tr>`).join('')}</tbody></table></div>`
+  : `<div class="list">${rows.map(([x]) => `<div class="card" style="margin:0"><div class="row" style="justify-content:space-between"><b>${esc(x.name)}</b><span class="row"><span class="chip">${esc(x.kind)} · ${esc(x.loc)}</span>${riskBtn(x.risk, 'disabled')}→${riskBtn(x.residual, 'disabled')}</span></div><div class="small">${esc(x.desc)}</div><div class="small muted">${esc(x.control)}</div>${docChips(x.control)}</div>`).join('')}</div>`}`;
+  const keep = (id, k) => { const el = $('#' + id); el.oninput = el.onchange = e => { LS.set(k, e.target.value); const pos = e.target.selectionStart; viewLibrary(app); if (id === 'libq') { const i = $('#libq'); i.focus(); try { i.setSelectionRange(pos, pos); } catch (x) {} } }; };
+  keep('libq', 'libq'); keep('libk', 'libk'); keep('libl', 'libl');
+  $$('textarea', app).forEach(autoGrow);
+}
+document.addEventListener('input', e => { const t = e.target; if (S.view !== 'library' || !t.dataset.lk) return; const i = +t.closest('[data-li]').dataset.li; LIB[i][t.dataset.lk] = t.type === 'checkbox' ? t.checked : t.value; if (t.dataset.lk === 'control') { const s = $(`[data-ldocs="${i}"]`); if (s) s.innerHTML = docChips(t.value); } if (t.tagName === 'TEXTAREA') autoGrow(t); $$('[data-act=libsave],[data-act=libundo]').forEach(b => b.disabled = false); });
+document.addEventListener('change', e => { const t = e.target; if (S.view !== 'library' || !t.dataset.lk) return; const i = +t.closest('[data-li]').dataset.li; LIB[i][t.dataset.lk] = t.type === 'checkbox' ? t.checked : t.value; $$('[data-act=libsave],[data-act=libundo]').forEach(b => b.disabled = false); });
+function pickCode(cur, title, done) {
+  const m = modal(`<div class="mhead"><h2>${esc(title)}</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>${matrixHtml(cur)}<div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" data-x>Cancel</button></div>`);
+  m.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { closeModal(); done(b.dataset.c); } else if (e.target.closest('[data-x]')) closeModal(); });
+}
+
+/* ---------- SOP / SWP documents ---------- */
+let REG = null;
+function viewDocs(app) {
+  if (!REG) REG = clone(S.cfg.register);
+  const ed = isAdmin();
+  const use = {}; S.cfg.library.forEach(x => docCodes(x.control).forEach(c => use[c] = (use[c] || 0) + 1));
+  const q = (LS.get('docq') || '').toLowerCase();
+  const rows = REG.map((x, i) => [x, i]).filter(([x]) => !q || (x.code + ' ' + x.title).toLowerCase().includes(q));
+  const missing = Object.keys(use).filter(c => !REG.some(r => r.code === c));
+  const dirty = JSON.stringify(REG) !== JSON.stringify(S.cfg.register);
+  app.innerHTML = `<button class="btn sm" data-go="${ed ? 'admin' : 'home'}">← Back</button><h1>SOP / SWP documents</h1>
+  <p class="lead">Each Safe Work Practice (SWP), Safe Job Procedure (SJP) or SOP number gets a title and a link to the current version (for example a SharePoint link). Wherever that number appears in control measures, Hive-Notes shows it as a link, in the app and in the PDF. Update the link here when a document is revised.</p>
+  <div class="toolbar"><input type="search" id="docq" placeholder="Search" value="${esc(LS.get('docq') || '')}"><span class="muted small">${REG.filter(r => /^https:\/\//i.test(r.url || '')).length} of ${REG.length} linked</span><span style="flex:1"></span>
+   ${ed ? `${missing.length ? `<button class="btn" data-act="docmissing">Add ${missing.length} number${missing.length > 1 ? 's' : ''} found in the library</button>` : ''}<button class="btn" data-act="docadd">+ Add document</button><button class="btn pri" data-act="docsave" ${dirty ? '' : 'disabled'}>Save</button>` : ''}</div>
+  <div class="tblwrap"><table class="ed stack"><thead><tr><th>Number</th><th style="min-width:220px">Title</th><th style="min-width:260px">Link (https://…)</th><th>Revision / date</th><th>Library rows</th>${ed ? '<th></th>' : ''}</tr></thead><tbody>
+  ${rows.map(([x, i]) => `<tr data-di="${i}"><td><input type="text" data-dk="code" value="${esc(x.code)}" style="min-width:90px" ${ed ? '' : 'disabled'}></td><td><input type="text" data-dk="title" value="${esc(x.title)}" ${ed ? '' : 'disabled'}></td>
+   <td>${ed ? `<input type="url" data-dk="url" value="${esc(x.url)}" placeholder="https://">` : (/^https:\/\//i.test(x.url || '') ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">Open ↗</a>` : '<span class="muted">No link yet</span>')}</td>
+   <td><input type="text" data-dk="rev" value="${esc(x.rev || '')}" style="min-width:90px" ${ed ? '' : 'disabled'}></td><td>${use[x.code] || 0}</td>${ed ? `<td><button class="btn sm warn" data-act="docdel" data-i="${i}" aria-label="Delete">✕</button></td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+  const qi = $('#docq'); qi.oninput = e => { LS.set('docq', e.target.value); const pos = e.target.selectionStart; viewDocs(app); const i = $('#docq'); i.focus(); try { i.setSelectionRange(pos, pos); } catch (x) {} };
+}
+document.addEventListener('input', e => { const t = e.target; if (S.view !== 'docs' || !t.dataset.dk) return; const i = +t.closest('[data-di]').dataset.di; REG[i][t.dataset.dk] = t.dataset.dk === 'code' ? t.value.toUpperCase() : t.value; const b = $('[data-act=docsave]'); if (b) b.disabled = false; });
+
+/* ---------- templates ---------- */
+let TPL = null;
+function viewTemplates(app) {
+  if (!TPL) TPL = clone(S.cfg.templates);
+  const cur = TPL.find(t => t.id === S.param) || TPL[0];
+  const dirty = JSON.stringify(TPL) !== JSON.stringify(S.cfg.templates);
+  app.innerHTML = `<button class="btn sm" data-go="admin">← Admin</button><h1>Templates</h1><p class="lead">Starter sets of rows for common kinds of work. “Load template” in a plan adds these rows.</p>
+  <div class="toolbar"><select id="tsel">${TPL.map(t => `<option value="${esc(t.id)}" ${cur && t.id === cur.id ? 'selected' : ''}>${esc(t.name)} (${t.rows.length})</option>`).join('')}</select>
+   <button class="btn" data-act="tnew">+ New template</button>${cur ? '<button class="btn" data-act="tren">Rename</button><button class="btn warn" data-act="tdel">Delete template</button>' : ''}<span style="flex:1"></span><button class="btn pri" data-act="tsave" ${dirty ? '' : 'disabled'}>Save templates</button></div>
+  ${cur ? `<div class="tblwrap"><table class="ed"><thead><tr><th style="min-width:160px">Work activity</th><th style="min-width:180px">Task involved</th><th style="min-width:200px">Specific hazard</th><th>Responsibility</th><th>Risk</th><th style="min-width:240px">Control measures</th><th>Residual</th><th></th></tr></thead><tbody>
+   ${cur.rows.map((r, i) => `<tr data-ti="${i}"><td><textarea data-tk="name" rows="2">${esc(r.name)}</textarea></td><td><textarea data-tk="task" rows="2">${esc(r.task)}</textarea></td><td><textarea data-tk="desc" rows="2">${esc(r.desc)}</textarea></td><td><input type="text" data-tk="resp" value="${esc(r.resp)}"></td>
+    <td>${riskBtn(r.risk, `data-act="trisk" data-i="${i}" data-k="risk"`)}</td><td><textarea data-tk="control" rows="2">${esc(r.control)}</textarea></td><td>${riskBtn(r.residual, `data-act="trisk" data-i="${i}" data-k="residual"`)}</td><td><button class="btn sm warn" data-act="trowdel" data-i="${i}" aria-label="Delete">✕</button></td></tr>`).join('')}
+   </tbody></table></div><p><button class="btn" data-act="trowadd">+ Add row</button></p>` : '<div class="empty">No templates.</div>'}`;
+  $('#tsel').onchange = e => go('templates', e.target.value, true);
+  $$('textarea', app).forEach(autoGrow);
+}
+document.addEventListener('input', e => { const t = e.target; if (S.view !== 'templates' || !t.dataset.tk) return; const cur = TPL.find(x => x.id === S.param) || TPL[0]; cur.rows[+t.closest('[data-ti]').dataset.ti][t.dataset.tk] = t.value; if (t.tagName === 'TEXTAREA') autoGrow(t); $('[data-act=tsave]').disabled = false; });
+
+/* ---------- emergency numbers ---------- */
+let EM = null;
+function viewEmergency(app) {
+  if (!EM) EM = clone(S.cfg.emergency);
+  const dirty = JSON.stringify(EM) !== JSON.stringify(S.cfg.emergency);
+  app.innerHTML = `<button class="btn sm" data-go="admin">← Admin</button><h1>Emergency numbers</h1><p class="lead">Picking a community on page 1 of a plan fills in these numbers. People can still change them in their plan.</p>
+  <div class="toolbar"><button class="btn" data-act="emadd">+ Add community</button><span style="flex:1"></span><button class="btn pri" data-act="emsave" ${dirty ? '' : 'disabled'}>Save</button></div>
+  <div class="tblwrap"><table class="ed"><thead><tr><th style="min-width:130px">Community</th><th>Prov.</th>${EM.fields.map(f => `<th style="min-width:170px;white-space:normal">${esc(f)}</th>`).join('')}<th></th></tr></thead><tbody>
+  ${EM.communities.map((c, i) => `<tr data-ei="${i}"><td><input type="text" data-ek="city" value="${esc(c.city)}"></td><td><input type="text" data-ek="prov" value="${esc(c.prov)}" style="width:70px"></td>${EM.fields.map(f => `<td><input type="text" data-ev="${esc(f)}" value="${esc(c.v[f] || '')}"></td>`).join('')}<td><button class="btn sm warn" data-act="emdel" data-i="${i}" aria-label="Delete">✕</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+document.addEventListener('input', e => { const t = e.target; if (S.view !== 'emergency') return; const tr = t.closest('[data-ei]'); if (!tr) return; const c = EM.communities[+tr.dataset.ei]; if (t.dataset.ek) c[t.dataset.ek] = t.value; else if (t.dataset.ev) c.v[t.dataset.ev] = t.value; $('[data-act=emsave]').disabled = false; });
+
+/* ---------- admin ---------- */
+function viewAdmin(app) {
+  if (!isAdmin()) return go('home', null, true);
+  const st = S.staff.slice().sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+  app.innerHTML = `<button class="btn sm" data-go="home">← Home</button><h1>Admin</h1>
+  <div class="tiles"><button class="tile" data-go="library"><b>Activities &amp; hazards library</b><span class="muted">${S.cfg.library.length} rows · edit on a PC</span></button>
+   <button class="tile" data-go="docs"><b>SOP / SWP links</b><span class="muted">${S.cfg.register.filter(r => /^https:/.test(r.url || '')).length} of ${S.cfg.register.length} linked</span></button>
+   <button class="tile" data-go="templates"><b>Templates</b><span class="muted">${S.cfg.templates.length} templates</span></button>
+   <button class="tile" data-go="emergency"><b>Emergency numbers</b><span class="muted">${S.cfg.emergency.communities.length} communities</span></button>
+   <button class="tile" data-go="texts"><b>Form wording</b><span class="muted">Purpose, notes, sign-off and email text</span></button></div>
+  <div class="row" style="justify-content:space-between"><h2>Staff (${st.length})</h2><button class="btn pri" data-act="addstaff">+ Add staff</button></div>
+  <p class="muted small">Adding someone emails them an invitation link to set their password. Their user name is what they sign in with.</p>
+  <div class="tblwrap"><table class="ed stack"><thead><tr><th>Name</th><th>User name</th><th>Email</th><th>Role</th><th>Project manager</th><th>Status</th><th></th></tr></thead><tbody>
+  ${st.map(s => `<tr><td><b>${esc(s.full_name)}</b><div class="muted small">${esc(s.title || '')}</div></td><td>${esc(s.username)}</td><td>${esc(s.email)}</td><td>${s.role === 'admin' ? 'Admin' : 'Staff'}</td><td>${s.is_pm ? 'Yes' : ''}</td>
+   <td>${s.active === false ? '<span class="chip draft">Inactive</span>' : s.joined_at ? '<span class="chip reviewed">Active</span>' : '<span class="chip">Invited</span>'}</td>
+   <td><div class="row" style="gap:6px"><button class="btn sm" data-act="editstaff" data-id="${esc(s.id)}">Edit</button>${s.active !== false ? `<button class="btn sm" data-act="reinvite" data-id="${esc(s.id)}">Resend invite</button>` : ''}${s.id !== S.me.id ? `<button class="btn sm ${s.active === false ? '' : 'warn'}" data-act="toggleactive" data-id="${esc(s.id)}">${s.active === false ? 'Reactivate' : 'Deactivate'}</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>`;
+}
+function staffForm(s) {
+  const isNew = !s; s = s || {full_name: '', username: '', email: '', role: 'staff', is_pm: false, title: ''};
+  const m = modal(`<div class="mhead"><h2>${isNew ? 'Add staff' : 'Edit ' + esc(s.full_name)}</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <form id="sf"><div class="grid2"><label class="f">Full name<input type="text" id="sfn" required value="${esc(s.full_name)}"></label><label class="f">Job title<input type="text" id="sft" value="${esc(s.title || '')}"></label>
+   <label class="f">User name (letters, numbers, . _ -)<input type="text" id="sfu" required pattern="[a-z0-9._\\-]{2,40}" autocapitalize="none" value="${esc(s.username)}"></label>
+   <label class="f">Email<input type="email" id="sfe" required value="${esc(s.email)}" ${isNew ? '' : 'disabled'}></label>
+   <label class="f">Role<select id="sfr"><option value="staff" ${s.role !== 'admin' ? 'selected' : ''}>Staff</option><option value="admin" ${s.role === 'admin' ? 'selected' : ''}>Admin</option></select></label>
+   <label class="chk" style="align-self:end"><input type="checkbox" id="sfp" ${s.is_pm ? 'checked' : ''}> Project manager (can receive plans)</label></div>
+   <p class="err" id="sfx"></p><div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-x>Cancel</button><button class="btn pri">${isNew ? 'Add and send invitation' : 'Save'}</button></div></form>`, 'narrow');
+  $('#sfn', m).oninput = e => { if (isNew && !$('#sfu', m).dataset.touched) { const p = e.target.value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/\s+/); $('#sfu', m).value = p.length > 1 ? (p[0][0] + p[p.length - 1]).replace(/[^a-z0-9._-]/g, '') : p[0] || ''; } };
+  $('#sfu', m).oninput = e => { e.target.dataset.touched = 1; e.target.value = e.target.value.toLowerCase(); };
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
+  $('#sf', m).onsubmit = async e => {
+    e.preventDefault();
+    const row = {...s, full_name: $('#sfn', m).value.trim(), title: $('#sft', m).value.trim(), username: $('#sfu', m).value.trim().toLowerCase(), email: $('#sfe', m).value.trim().toLowerCase(), role: $('#sfr', m).value, is_pm: $('#sfp', m).checked};
+    if (S.staff.some(x => x.id !== s.id && x.username === row.username)) { $('#sfx', m).textContent = 'That user name is taken.'; return; }
+    if (isNew && S.staff.some(x => x.email === row.email)) { $('#sfx', m).textContent = 'Someone already has that email.'; return; }
+    if (!S.online && S.mode === 'live') { $('#sfx', m).textContent = 'Adding staff needs a connection.'; return; }
+    try { if (isNew) { const r = await B().invite(row); closeModal(); if (S.mode === 'demo') inviteInfo(row); else { toast(`Invitation emailed to ${row.email}`); await Live.pull(); } } else { await B().updateStaff(row); if (row.id === S.me.id) S.me = {...S.me, ...row}; closeModal(); toast('Saved'); } render(); }
+    catch (err) { $('#sfx', m).textContent = err.message || String(err); }
+  };
+}
+function inviteInfo(s) {
+  const m = modal(`<h2>Invitation (demo)</h2><div class="band small">Demo mode – no email was sent.</div><p><b>To:</b> ${esc(s.email)}<br><b>Subject:</b> You’ve been added to Hive-Notes</p>
+   <div class="card note" style="color:var(--ink)">Hi ${esc(s.full_name.split(' ')[0])},\n\nYou’ve been added to Hive-Notes, Hive’s app for safety plans and site notes. It works on your phone and your PC, and offline in the field.\n\nYour user name: ${esc(s.username)}\nSet your password here: [secure link]\n\nAfter that, open ${esc(appUrl())} and sign in. On a phone, use “Add to Home Screen” so it opens like an app and works without a signal.</div>
+   <div class="row" style="justify-content:flex-end"><button class="btn pri" data-x>OK</button></div>`, 'narrow');
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
+}
+function viewTexts(app) {
+  const T = S.cfg.texts;
+  const lab = {purpose: 'Purpose paragraph (page 1)', subDeclaration: 'Subcontractor declaration (red line)', subNote: 'Subcontractor H&S plan note', accident: 'Accident / incident investigations', notes: 'Hazard assessment notes', violence: 'Violence question', signP1: 'Page 1 sign-off statement', signP2: 'Page 2 sign-off statement', emailBody: 'Email to the PM'};
+  app.innerHTML = `<button class="btn sm" data-go="admin">← Admin</button><h1>Form wording</h1><p class="lead">The fixed text on the plan, the PDF and the email. Changes apply to plans submitted from now on.</p>
+  <form id="tf">${Object.keys(lab).map(k => `<label class="f" style="margin:12px 0">${esc(lab[k])}<textarea data-tx="${k}" rows="4">${esc(T[k])}</textarea></label>`).join('')}
+  <div class="sticky-actions"><button type="button" class="btn" data-act="txreset">Restore original wording</button><button class="btn pri">Save wording</button></div></form>`;
+  $$('textarea', app).forEach(autoGrow);
+  $('#tf').onsubmit = async e => { e.preventDefault(); const t = {}; $$('[data-tx]').forEach(x => t[x.dataset.tx] = x.value); await saveCfg('texts', t); toast('Saved'); };
+}
+async function saveCfg(k, data) {
+  if (S.mode === 'live' && !S.online) { toast('Saving shared lists needs a connection.'); throw new Error('offline'); }
+  try { await B().saveConfig(k, clone(data)); } catch (e) { toast(e.message || String(e)); throw e; }
+}
+
+/* ---------- menu ---------- */
+function openMenu() {
+  const m = modal(`<div class="mhead"><h2>${esc(S.me.full_name)}</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <p class="muted small">User name ${esc(S.me.username)} · ${S.me.role === 'admin' ? 'Admin' : 'Staff'}${S.me.is_pm ? ' · Project manager' : ''}</p>
+   ${S.mode === 'demo' ? `<label class="f">Viewing as (demo)<select id="va">${S.staff.map(s => `<option value="${esc(s.id)}" ${s.id === S.me.id ? 'selected' : ''}>${esc(s.full_name)} – ${s.role === 'admin' ? 'admin' : s.is_pm ? 'PM' : 'staff'}</option>`).join('')}</select></label>` : ''}
+   <div class="list" style="margin-top:12px"><button class="item" data-go="home">Sections</button><button class="item" data-go="list">Safety plans</button><button class="item" data-go="library">Activities &amp; hazards library</button><button class="item" data-go="docs">SOP / SWP documents</button>${isAdmin() ? '<button class="item" data-go="admin">Admin</button>' : ''}
+   ${S.mode === 'live' ? `<button class="item" data-act="syncnow">Sync now<span class="grow"></span><span class="muted small">${S.lastSync ? 'last ' + fmtDT(S.lastSync) : ''}</span></button><button class="item" data-act="chpw">Change password</button>` : ''}
+   ${S.mode === 'demo' ? '<button class="item" data-act="demoreset">Reset demo data</button>' : ''}
+   <button class="item" data-act="signout">Sign out</button></div><p class="muted small">Hive-Notes ${VERSION}${S.mode === 'demo' ? ' · demo mode' : ''}</p>`, 'narrow');
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]') || e.target.closest('[data-go]')) closeModal(); });
+  const va = $('#va', m); if (va) va.onchange = async () => { LS.set('demoUser', va.value); S.me = S.staff.find(s => s.id === va.value); closeModal(); LIB = REG = TPL = EM = null; go('home', null, true); };
+}
+
+/* ---------- global click handler ---------- */
+document.addEventListener('click', async e => {
+  const g = e.target.closest('[data-go]');
+  if (g && !g.closest('.modal')) { e.preventDefault(); const v = g.dataset.go; if (['library', 'docs', 'templates', 'emergency'].includes(v) && S.view !== v) { LIB = REG = TPL = EM = null; } go(v, g.dataset.p || null); return; }
+  if (g && g.closest('.modal')) { const v = g.dataset.go; LIB = REG = TPL = EM = null; go(v, g.dataset.p || null); return; }
+  const st = e.target.closest('[data-step]'); if (st && P) { LS.set('step:' + P.id, st.dataset.step); render(); window.scrollTo(0, 0); return; }
+  if (e.target.matches('[data-close-scrim]')) { closeModal(); return; }
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act, i = a.dataset.i != null ? +a.dataset.i : null;
+  switch (act) {
+    case 'menu': openMenu(); break;
+    case 'signout': closeModal(); await B().signOut(); S.me = null; P = null; render(); break;
+    case 'syncnow': closeModal(); sync(true); break;
+    case 'chpw': closeModal(); S.needPassword = true; render(); break;
+    case 'demoreset': if (await ask('Reset demo?', 'Puts the sample data back and clears your demo plans.', 'Reset', 1)) { await DB.set('demo:notes', {}); await DB.set('demo:cfg', null); await DB.set('demo:staff', null); S.staff = clone(DEMO_STAFF); S.me = S.staff.find(s => s.id === S.me.id) || S.staff[0]; await afterLogin(); } break;
+    case 'newplan': newPlan(); break;
+    case 'emergAll': LS.set('emergAll', a.checked ? '1' : '0'); render(); break;
+    case 'pick': openPicker(); break;
+    case 'tpl': openTemplates(); break;
+    case 'blank': P.data.rows.push({name: '', desc: '', resp: 'Employee', risk: '', control: '', residual: '', task: '', due: '', done: ''}); touch(); render(); break;
+    case 'delrow': if (await ask('Remove row?', `Remove “${P.data.rows[i].name || 'row ' + (i + 1)}” from this plan?`, 'Remove', 1)) { P.data.rows.splice(i, 1); touch(); render(); } break;
+    case 'up': if (i > 0) { const r = P.data.rows; [r[i - 1], r[i]] = [r[i], r[i - 1]]; touch(); render(); } break;
+    case 'risk': openRisk(i, a.dataset.k); break;
+    case 'clearpad': { const t = sigTarget(a.dataset.p); t.sig = null; t.at = null; touch(); render(); break; }
+    case 'addcrew': P.data.crew = P.data.crew || []; P.data.crew.push({name: '', sig: null, at: null}); touch(); render(); break;
+    case 'delcrew': P.data.crew.splice(i, 1); touch(); render(); break;
+    case 'savetpl': { const name = await promptText('Save as template', 'Template name', P.data.template || P.data.title); if (!name) break; const t = {id: 'T' + uid().slice(0, 8), name, rows: P.data.rows.map(r => ({name: r.name, task: r.task || '', desc: r.desc, resp: r.resp, risk: r.risk, control: r.control, residual: r.residual}))}; try { await saveCfg('templates', [...S.cfg.templates, t]); toast('Template saved'); } catch (x) {} break; }
+    case 'preview': { toast('Building PDF…', 1500); const b = await buildPdf(P); saveFile(b, pdfName(P)); break; }
+    case 'pdf': { let b; try { b = S.mode === 'live' && P.pdf_path && S.online && !P._queued ? await Live.pdf(P) : await buildPdf(P); } catch (x) { b = await buildPdf(P); } saveFile(b, pdfName(P)); break; }
+    case 'submit': submitPlan(); break;
+    case 'reviewed': P.status = 'reviewed'; P.reviewed_at = new Date().toISOString(); P.reviewed_by = S.me.id; P._dirty = true; await saveNotes(); queueSync(200); render(); toast('Marked reviewed'); break;
+    case 'reopen': if (await ask('Reopen to edit?', 'The plan goes back to draft. Submit it again when you are done, and the PM gets the new version.', 'Reopen')) { P.status = 'draft'; touch(); render(); } break;
+    case 'dup': newPlan(P); toast('Copied. Signatures and dates were cleared.'); break;
+    case 'delplan': if (await ask('Delete plan?', 'This deletes the plan for everyone. It can’t be undone.', 'Delete', 1)) { if (S.mode === 'demo' || P._local) delete S.notes[P.id]; else { P._deleted = true; } S.outbox = S.outbox.filter(o => o.id !== P.id); await DB.set(key('outbox'), S.outbox); await saveNotes(); queueSync(200); go('list', null, true); } break;
+    // library
+    case 'libadd': LIB.unshift({id: 'L' + uid().slice(0, 8), name: '', kind: 'Activity', loc: 'Field', desc: '', resp: 'Employee', risk: '', control: '', residual: '', active: true}); LS.set('libq', ''); viewLibrary($('#app')); $('[data-li="0"] textarea').focus(); break;
+    case 'libdel': if (await ask('Delete row?', `Delete “${LIB[i].name}” from the library? Plans that already use it keep their copy. (Untick “In use” instead to hide it without deleting.)`, 'Delete', 1)) { LIB.splice(i, 1); viewLibrary($('#app')); } break;
+    case 'librisk': pickCode(normCode(LIB[i][a.dataset.k]), a.dataset.k === 'risk' ? 'Risk level' : 'Residual risk', c => { LIB[i][a.dataset.k] = c; viewLibrary($('#app')); }); break;
+    case 'libundo': LIB = clone(S.cfg.library); viewLibrary($('#app')); break;
+    case 'libsave': { const bad = LIB.filter(x => !x.name.trim()); if (bad.length) { toast('Every row needs an activity or hazard name.'); break; } try { await saveCfg('library', LIB); toast('Library saved – everyone gets it on their next sync.'); viewLibrary($('#app')); } catch (x) {} break; }
+    // docs
+    case 'docadd': REG.unshift({code: '', title: '', url: '', rev: ''}); viewDocs($('#app')); $('[data-di="0"] input').focus(); break;
+    case 'docdel': REG.splice(i, 1); viewDocs($('#app')); $('[data-act=docsave]').disabled = false; break;
+    case 'docmissing': { const have = new Set(REG.map(r => r.code)); defaultRegister(S.cfg.library, S.cfg.templates).forEach(r => { if (!have.has(r.code)) REG.push(r); }); REG.sort(docSort); viewDocs($('#app')); $('[data-act=docsave]').disabled = false; break; }
+    case 'docsave': { const bad = REG.filter(r => r.url && !/^https:\/\//i.test(r.url)); if (bad.length) { toast(`Links must start with https:// (${bad.map(b => b.code).join(', ')})`); break; } REG = REG.filter(r => r.code.trim()).map(r => ({...r, code: r.code.trim().replace(/\s+/g, ' ')})); REG.sort(docSort); try { await saveCfg('register', REG); toast('Saved'); viewDocs($('#app')); } catch (x) {} break; }
+    // templates
+    case 'tnew': { const name = await promptText('New template', 'Template name', ''); if (!name) break; const t = {id: 'T' + uid().slice(0, 8), name, rows: []}; TPL.push(t); go('templates', t.id, true); break; }
+    case 'tren': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; const name = await promptText('Rename template', 'Template name', cur.name); if (name) { cur.name = name; viewTemplates($('#app')); } break; }
+    case 'tdel': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; if (await ask('Delete template?', `Delete “${cur.name}”? (Takes effect when you save.)`, 'Delete', 1)) { TPL = TPL.filter(t => t !== cur); go('templates', TPL[0] && TPL[0].id, true); } break; }
+    case 'trowadd': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; cur.rows.push({name: '', task: '', desc: '', resp: 'Employee', risk: '', control: '', residual: ''}); viewTemplates($('#app')); break; }
+    case 'trowdel': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; cur.rows.splice(i, 1); viewTemplates($('#app')); break; }
+    case 'trisk': { const cur = TPL.find(t => t.id === S.param) || TPL[0]; pickCode(normCode(cur.rows[i][a.dataset.k]), a.dataset.k === 'risk' ? 'Risk level' : 'Residual risk', c => { cur.rows[i][a.dataset.k] = c; viewTemplates($('#app')); }); break; }
+    case 'tsave': try { await saveCfg('templates', TPL); toast('Templates saved'); viewTemplates($('#app')); } catch (x) {} break;
+    // emergency
+    case 'emadd': EM.communities.push({id: 'C' + uid().slice(0, 8), city: '', prov: 'NS', v: {}}); viewEmergency($('#app')); break;
+    case 'emdel': if (await ask('Delete community?', `Delete ${EM.communities[i].city || 'this row'}?`, 'Delete', 1)) { EM.communities.splice(i, 1); viewEmergency($('#app')); $('[data-act=emsave]').disabled = false; } break;
+    case 'emsave': try { await saveCfg('emergency', EM); toast('Saved'); viewEmergency($('#app')); } catch (x) {} break;
+    case 'txreset': if (await ask('Restore wording?', 'Put back the original wording from the Excel form (with EXP changed to Hive)?', 'Restore')) { try { await saveCfg('texts', {...DEFAULT_TEXTS}); render(); } catch (x) {} } break;
+    // staff
+    case 'addstaff': staffForm(); break;
+    case 'editstaff': staffForm(staffById(a.dataset.id)); break;
+    case 'reinvite': { const s = staffById(a.dataset.id); try { await B().adminAction('resend', {id: s.id}); S.mode === 'demo' ? inviteInfo(s) : toast('Invitation sent again to ' + s.email); } catch (x) { toast(x.message); } break; }
+    case 'toggleactive': { const s = staffById(a.dataset.id); const on = s.active === false; if (!await ask(on ? 'Reactivate?' : 'Deactivate?', on ? `${s.full_name} will be able to sign in again.` : `${s.full_name} won’t be able to sign in. Their plans stay.`, on ? 'Reactivate' : 'Deactivate', !on)) break; try { await B().adminAction('set_active', {id: s.id, active: on}); s.active = on; if (S.mode === 'demo') await Demo.saveStaff(S.staff); else await Live.pull(); render(); } catch (x) { toast(x.message); } break; }
+  }
+});
+function promptText(title, label, val) { return new Promise(res => { const m = modal(`<h2>${esc(title)}</h2><form id="pt"><label class="f">${esc(label)}<input type="text" id="ptv" value="${esc(val || '')}" required></label><div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" data-x>Cancel</button><button class="btn pri">OK</button></div></form>`, 'narrow'); $('#ptv', m).focus(); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } }); $('#pt', m).onsubmit = e => { e.preventDefault(); const v = $('#ptv', m).value.trim(); closeModal(); res(v); }; }); }
+
+const VIEWS = {home: viewHome, list: viewList, plan: viewPlan, library: viewLibrary, docs: viewDocs, templates: viewTemplates, emergency: viewEmergency, admin: viewAdmin, texts: viewTexts};
+
+/* ---------- demo sample ---------- */
+function seedDemoNotes() {
+  const lib = n => { const x = S.cfg.library.find(l => l.name === n); return {libId: x.id, name: x.name, desc: x.desc, resp: x.resp, risk: x.risk, control: x.control, residual: x.residual, task: '', due: '', done: ''}; };
+  const c = S.cfg.emergency.communities.find(x => x.city === 'Sydney') || S.cfg.emergency.communities[0];
+  const base = (id, owner, pm, status, title, no, addr, rows, extra = {}) => { const now = new Date(Date.now() - Math.random() * 6e8).toISOString(); S.notes[id] = Object.assign({id, section: 'safety', kind: 'hazard_assessment', owner, pm, status, title, project_no: no, created_at: now, updated_at: now,
+    data: {title, projectNo: no, date: now.slice(0, 10), address: addr, activities: 'Phase I ESA site visit', subActivities: 'None', subOwn: false, subHive: false, community: c.id, emergency: {...c.v}, contacts: {client: 'NSTIR', fieldRep: (staffById(owner) || {}).full_name, safety: '', gc: '', sub: '', subcon: '', other: ''}, rows, violence: false, crew: [], sign1: null, sign2: null, template: ''}}, extra); };
+  base('demo-1', 'd-tech', 'd-admin', 'draft', 'Phase I ESA', '26-0142', '60 Main Street, Reserve Mines, NS', ['Working Alone', 'Traffic', 'Mobile Equipment', 'Ticks', 'Hazardous Materials'].map(lib));
+  base('demo-2', 'd-tech2', 'd-admin', 'submitted', 'Geotechnical investigation – Kings Road', '26-0131', '480 Kings Road, Sydney River, NS', ['Test Pit Investigation', 'Underground Utility Locates', 'Traffic', 'Drilling Boreholes'].map(lib), {submitted_at: new Date(Date.now() - 864e5).toISOString()});
+  S.notes['demo-2'].data.sign1 = S.notes['demo-2'].data.sign2 = {name: 'Amélie Boudreau', sig: null, at: new Date(Date.now() - 864e5).toISOString()};
+  saveNotes();
+}
+
+/* ---------- start ---------- */
+async function start() {
+  addEventListener('online', () => { S.online = true; topbar(); sync(); });
+  addEventListener('offline', () => { S.online = false; topbar(); });
+  if (/type=(invite|recovery)/.test(location.hash)) S.needPassword = true;
+  await DB.open();
+  try { const r = await fetch('logo.png', {cache: 'no-cache'}); if (r.ok && (r.headers.get('content-type') || '').startsWith('image')) { const b = await r.blob(); LOGO_IMG = await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b); }); } } catch (e) {}
+  try { const r = await fetch('hivenotes-config.json', {cache: 'no-cache'}); if (r.ok) S.conf = await r.json(); else S.conf = JSON.parse(LS.get('conf') || '{}'); if (r.ok) LS.set('conf', JSON.stringify(S.conf)); } catch (e) { try { S.conf = JSON.parse(LS.get('conf') || '{}'); } catch (x) { S.conf = {}; } }
+  S.mode = S.conf.supabaseUrl && S.conf.supabaseKey ? 'live' : 'demo';
+  S.lastSync = LS.get('lastSync');
+  try { await B().init(); S.me = await B().restore(); } catch (e) { console.warn(e); S.me = null; }
+  if (S.mode === 'demo' && !LS.get('demoUser')) S.me = null;
+  if (S.me) await afterLogin(); else render();
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !window.__noSW) {
+    try { const reg = await navigator.serviceWorker.register('sw.js'); navigator.serviceWorker.addEventListener('controllerchange', () => { if (!window.__reloading) { window.__reloading = true; location.reload(); } }); reg.update(); } catch (e) {}
+  }
+  setInterval(() => { if (S.online && S.mode === 'live' && S.me) sync(); }, 5 * 60 * 1000);
+}
+start();
+}
+</script>
+</body>
+</html>
