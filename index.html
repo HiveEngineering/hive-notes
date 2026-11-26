@@ -106,6 +106,16 @@ input:disabled,textarea:disabled,select:disabled{opacity:.85;background:transpar
 .hz .rk{display:flex;gap:16px;flex-wrap:wrap}
 .hz .rk>div{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;color:var(--muted)}
 .hz input.task{font-size:14px;min-height:36px;padding:6px 10px;margin-top:6px;color:var(--muted)}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:8px;margin:10px 0;background:var(--field);text-align:center}
+.drop.over{border-color:var(--blue);background:var(--light)}
+.ophotos{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.ophoto{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--card)}
+.ophoto .th{position:relative;flex:0 0 auto;width:min(38vw,220px)}
+.ophoto .th img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--field);display:block}
+.ophoto .th .n{position:absolute;left:6px;top:6px;background:var(--blue);color:var(--navy);font-weight:700;border-radius:99px;min-width:26px;text-align:center;padding:1px 6px;font-size:13px}
+@media (max-width:560px){.ophoto{flex-direction:column}.ophoto .th{width:100%}}
+.obsent{border-left:4px solid var(--blue);padding:4px 0 8px 12px;margin:12px 0}
+.tablewrap{overflow-x:auto}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:12px;margin:10px 0}
 .photos figure{margin:0;background:var(--field);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .photos img{display:block;width:100%;height:170px;object-fit:cover;background:#000}
@@ -202,7 +212,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.8';
+const VERSION = '0.4.0';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -401,16 +411,27 @@ const Live = {
     if (r.error) throw r.error;
     n._local = false;
   },
+  async uploadPhotos(n) { // observation photos go to the hn-photos bucket; the note keeps only the path
+    for (const p of n.data.photos || []) {
+      if (p.path) continue; const b = await DB.get(phKey(p.id)); if (!b) continue;
+      const path = `${n.owner}/${n.id}/${p.id}.jpg`;
+      const {error} = await this.sb.storage.from('hn-photos').upload(path, b, {upsert: true, contentType: 'image/jpeg'});
+      if (error) throw new Error('Photo upload failed: ' + error.message);
+      p.path = path;
+    }
+  },
   async push() {
     for (const n of Object.values(S.notes)) {
       if (n._deleted) { const {error} = await this.sb.from('hn_notes').delete().eq('id', n.id); if (!error || error.code === 'PGRST116') delete S.notes[n.id]; continue; }
       if (!n._dirty || n._queued) continue;
+      if (isObs(n) && n.owner === S.me.id) await this.uploadPhotos(n);
       const stamp = n.updated_at; await this.write(n); if (n.updated_at === stamp) n._dirty = false; // edits made during the upload stay dirty
     }
     for (const item of S.outbox.slice()) {
       const n = S.notes[item.id]; if (!n) { S.outbox = S.outbox.filter(o => o !== item); continue; }
-      const path = n.owner + '/' + n.id + '.pdf';
-      const up = await this.sb.storage.from('hn-pdfs').upload(path, item.pdf, {upsert: true, contentType: 'application/pdf'}); if (up.error) throw up.error;
+      if (isObs(n)) await this.uploadPhotos(n);
+      const ext = item.ext || 'pdf', path = n.owner + '/' + n.id + '.' + ext;
+      const up = await this.sb.storage.from('hn-pdfs').upload(path, item.pdf, {upsert: true, contentType: ext === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf'}); if (up.error) throw up.error;
       n.pdf_path = path;
       await this.write(n);
       const r = await this.sb.functions.invoke('hn-submit', {body: {note_id: n.id}});
@@ -563,11 +584,13 @@ const ICONS = {
   admin: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M19 8v6M16 11h6"/></svg>'
 };
 function viewHome(app) {
-  const mine = Object.values(S.notes).filter(n => n.owner === S.me.id && !n._deleted);
+  const mine = Object.values(S.notes).filter(n => n.owner === S.me.id && !n._deleted && n.section === 'safety');
+  const obsDrafts = Object.values(S.notes).filter(n => n.owner === S.me.id && !n._deleted && isObs(n) && n.status === 'draft').length;
+  const obsReview = Object.values(S.notes).filter(n => n.pm === S.me.id && isObs(n) && n.status === 'submitted' && !n._deleted).length;
   const drafts = mine.filter(n => n.status === 'draft').length;
-  const toReview = Object.values(S.notes).filter(n => n.pm === S.me.id && n.status === 'submitted' && !n._deleted).length;
+  const toReview = Object.values(S.notes).filter(n => n.pm === S.me.id && n.status === 'submitted' && !n._deleted && n.section === 'safety').length;
   const sec = (key, title, desc, live, chips = '') => live
-    ? `<button class="tile sec" data-go="list" data-sec="${key}"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="row">${chips}</span></button>`
+    ? `<button class="tile sec" data-go="${key === 'observation' ? 'obslist' : 'list'}" data-sec="${key}"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="row">${chips}</span></button>`
     : `<div class="tile sec soon" aria-disabled="true"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="chip">Coming later</span></div>`;
   app.innerHTML = `<h1>Hi ${esc((S.me.full_name || '').split(' ')[0])}</h1><p class="lead">Choose a section.</p>
   <div class="secs">
@@ -575,7 +598,8 @@ function viewHome(app) {
       (drafts ? `<span class="chip draft">${drafts} draft${drafts > 1 ? 's' : ''}</span>` : '') + (toReview ? `<span class="chip submitted">${toReview} to review</span>` : ''))}
     ${sec('esa', 'Phase I ESA', 'Site visit notes for Phase I Environmental Site Assessments.', false)}
     ${sec('hazmat', 'HazMat', 'Hazardous materials survey notes.', false)}
-    ${sec('observation', 'Observation', 'Site observation notes.', false)}
+    ${sec('observation', 'Observation', 'Site Observation Reports with photographs, exported to Word and emailed to the project manager.', true,
+      (obsDrafts ? `<span class="chip draft">${obsDrafts} draft${obsDrafts > 1 ? 's' : ''}</span>` : '') + (obsReview ? `<span class="chip submitted">${obsReview} to review</span>` : ''))}
   </div>
   <div class="row" style="margin-top:18px">${isAdmin() ? '<button class="btn" data-go="admin">Admin</button>' : ''}<button class="btn" data-go="library">Activities &amp; hazards library</button><button class="btn" data-go="docs">SOP / SWP documents</button></div>
   ${S.mode === 'demo' ? `<div class="band small"><b>Demo mode.</b> Nothing is sent and the sample people are made up. Switch who you are viewing as from the ☰ menu to see the field, PM and admin views.</div>` : ''}`;
@@ -617,11 +641,12 @@ function newPlan(from) {
 /* ---------- plan editor ---------- */
 let P = null; // current note
 let saveT = null;
-function touch() { if (!P) return; P.updated_at = new Date().toISOString(); P.title = P.data.title; P.project_no = P.data.projectNo; P._dirty = true; clearTimeout(saveT); saveT = setTimeout(async () => { await saveNotes(); topbar(); queueSync(2500); }, 500); }
+function touch() { if (!P) return; P.updated_at = new Date().toISOString(); P.title = isObs(P) ? P.data.location : P.data.title; P.project_no = P.data.projectNo; P._dirty = true; clearTimeout(saveT); saveT = setTimeout(async () => { await saveNotes(); topbar(); queueSync(2500); }, 500); }
 const canEdit = n => n.owner === S.me.id && n.status === 'draft';
 function viewPlan(app) {
   P = S.notes[S.param];
   if (!P) { app.innerHTML = `<div class="empty">${S.syncing || (S.online && S.mode === 'live' && !S.lastSync) ? 'Loading the plan…' : 'This plan isn’t on this device' + (S.online ? ' or you don’t have access to it' : ' and you are offline') + '.'}</div><p><button class="btn" data-go="list">Back to list</button></p>`; return; }
+  if (isObs(P)) return viewObs(app);
   const step = Number(LS.get('step:' + P.id) || 1);
   const ed = canEdit(P);
   const [c, t] = noteLabel(P);
@@ -1064,6 +1089,422 @@ function emailPreview(n, blob) {
   m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
 }
 
+/* ---------- Observation Report → Word (.docx), built on Hive's own template (obs-template.docx) ---------- */
+const OBS_TPL_URL = 'obs-template.docx';
+const OBS_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function obsDate(iso) { if (!iso) return ''; const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number); return y && m && d ? `${OBS_MONTHS[m - 1]} ${String(d).padStart(2, '0')}, ${y}` : String(iso); }
+function obsTime(t, upper) { if (!t) return ''; const m = /^(\d{1,2}):(\d{2})/.exec(t); if (!m) return t; let h = +m[1]; const ap = h >= 12 ? 'pm' : 'am'; h = h % 12 || 12; const s = `${h}:${m[2]} ${ap}`; return upper ? s.toUpperCase() : s; }
+const obsLines = t => String(t || '').split('\n').map(x => x.replace(/^\s*[-•*o]\s+/, '').trim()).filter(Boolean);
+const obsParas = t => String(t || '').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+
+function obsDocxBody(d, o) {
+  // o: {sig: {rid, cx, cy} | null, photos: [{rid, cx, cy, n, caption, date}], authorName, authorTitle, reviewerName, reviewerTitle}
+  const X = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  const R = (t, b) => String(t == null ? '' : t).split('\n').map((ln, i) => `<w:r>${b ? '<w:rPr><w:b/><w:bCs/></w:rPr>' : ''}${i ? '<w:br/>' : ''}<w:t xml:space="preserve">${X(ln)}</w:t></w:r>`).join('');
+  const P = (t, style = 'BodyText', ppr = '', b = false) => `<w:p><w:pPr><w:pStyle w:val="${style}"/>${ppr}</w:pPr>${R(t, b)}</w:p>`;
+  const H1 = t => P(t, 'Heading1', '<w:keepNext/>'), H2 = t => P(t, 'Heading2', '<w:keepNext/>');
+  const EMPTY = '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr></w:p>';
+  const paras = t => obsParas(t).map(x => P(x)).join('');
+  let docPr = 100;
+  const pic = (rid, cx, cy, name) => { const id = ++docPr; return `<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${id}" name="${X(name)}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${X(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>`; };
+  // Hive blue table (as in the template)
+  const BAND = '<w:trPr><w:cnfStyle w:val="000000010000" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:oddVBand="0" w:evenVBand="0" w:oddHBand="0" w:evenHBand="1" w:firstRowFirstColumn="0" w:firstRowLastColumn="0" w:lastRowFirstColumn="0" w:lastRowLastColumn="0"/></w:trPr>';
+  const HEADROW = '<w:trPr><w:tblHeader/><w:cnfStyle w:val="100000000000" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:oddVBand="0" w:evenVBand="0" w:oddHBand="0" w:evenHBand="0" w:firstRowFirstColumn="0" w:firstRowLastColumn="0" w:lastRowFirstColumn="0" w:lastRowLastColumn="0"/></w:trPr>';
+  const LINE = 'w:val="single" w:sz="4" w:space="0" w:color="81DBFF"';
+  const cell = (w, t, center, i, n) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${n > 1 ? `<w:tcBorders>${i > 0 ? `<w:left ${LINE}/>` : ''}${i < n - 1 ? `<w:right ${LINE}/>` : ''}</w:tcBorders>` : ''}</w:tcPr><w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:before="60" w:after="60"/>${center ? '<w:jc w:val="center"/>' : '<w:jc w:val="left"/>'}</w:pPr>${R(t)}</w:p></w:tc>`;
+  const table = (widths, head, rows, centre = []) => `<w:tbl><w:tblPr><w:tblStyle w:val="HiveTableblue"/><w:tblW w:w="0" w:type="auto"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>
+    <w:tr>${HEADROW}${head.map((h, i) => `<w:tc><w:tcPr><w:tcW w:w="${widths[i]}" w:type="dxa"/></w:tcPr><w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:before="60" w:after="60"/>${centre.includes(i) ? '<w:jc w:val="center"/>' : '<w:jc w:val="left"/>'}</w:pPr>${R(h)}</w:p></w:tc>`).join('')}</w:tr>
+    ${rows.map((r, k) => `<w:tr>${k % 2 ? BAND : '<w:trPr><w:cantSplit/></w:trPr>'}${r.map((t, i) => cell(widths[i], t, centre.includes(i), i, r.length)).join('')}</w:tr>`).join('')}</w:tbl>`;
+  // project table (no borders, bold labels)
+  const infoRow = (l, v) => `<w:tr><w:tc><w:tcPr><w:tcW w:w="2694" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:before="20" w:after="20"/><w:jc w:val="left"/></w:pPr>${R(l, true)}</w:p></w:tc><w:tc><w:tcPr><w:tcW w:w="6666" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:before="20" w:after="20"/><w:jc w:val="left"/></w:pPr>${R(v)}</w:p></w:tc></w:tr>`;
+  const NOBORDER = '<w:tblBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tblBorders>';
+  const info = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="9360" w:type="dxa"/>${NOBORDER}<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="2694"/><w:gridCol w:w="6666"/></w:tblGrid>
+    ${[['Project #:', d.projectNo], ['Date:', obsDate(d.date)], ['Time:', obsTime(d.time)], ['Location:', d.location], ['Hive Personnel:', d.personnel], ['Prime Contractor:', d.prime], ['Contractor On-Site:', d.contractor], ['ECCC Weather:', d.weather]].map(([l, v]) => infoRow(l, v)).join('')}</w:tbl>`;
+
+  let b = EMPTY + P('SITE OBSERVATION REPORT', 'AppendixHeading') + info;
+  // 1. general observations – timed entries
+  b += H1('General Observations') + P('The following general observations were made during the Site visit.' + (o.photos.length ? ' Supporting photographs are included in Attachment A.' : ''));
+  (d.entries || []).forEach(e => {
+    const items = obsLines(e.text); if (!e.time && !items.length) return;
+    if (e.time) b += `<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:keepNext/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="12"/></w:numPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>${R(obsTime(e.time, true), true)}</w:p>`;
+    items.forEach(t => { b += `<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="${e.time ? 1 : 0}"/><w:numId w:val="12"/></w:numPr></w:pPr>${R(t)}</w:p>`; });
+  });
+  // 2. equipment
+  const eq = (d.equipment || []).filter(r => (r.type || '').trim());
+  if (eq.length) b += H1('List of Equipment On-site') + table([6946, 2414], ['Equipment Type', 'Quantity'], eq.map(r => [r.type, r.qty]), [1]) + EMPTY;
+  // 3. site personnel
+  const crew = (d.crew || []).filter(r => (r.name || '').trim() || (r.contact || '').trim());
+  if (crew.length) b += H1('Site Personnel') + table([2340, 2340, 4680], ['Personnel', '', 'Contact Info (Phone/Email)'], crew.map(r => [r.role, r.name, r.contact])) + EMPTY;
+  // 4–6. text sections
+  if (obsParas(d.workPlanned).length) b += H1('Work Planned and Discussions with Contractor') + paras(d.workPlanned);
+  if (obsParas(d.ppe).length) b += H1('Personal Protective Equipment') + paras(d.ppe);
+  if (obsParas(d.security).length) b += H1('Abatement Control & Site Security') + paras(d.security);
+  // 7. waste
+  if (obsParas(d.wasteWhere).length || d.wasteSecure) {
+    b += H1('Waste Storage');
+    if (obsParas(d.wasteWhere).length) b += H2('Where is the Waste stored?') + paras(d.wasteWhere);
+    if (d.wasteSecure) b += H2('Is it Secure (yes/no)') + P(d.wasteSecure === 'yes' ? 'Yes.' : d.wasteSecure === 'no' ? 'No.' + (d.wasteSecureNote ? ' ' + d.wasteSecureNote : '') : 'Not applicable.');
+  }
+  // 8. air monitoring
+  const air = (d.air || []).filter(r => [r.id, r.location, r.wind, r.result].some(x => (x || '').trim()));
+  if (air.length) b += H1('Air Monitoring Results') + P('Air monitoring was conducted for this visit. The table below represents the result of the air monitoring exercise.' + (o.attachB ? ' Lab certificates are presented in Attachment B.' : '')) + table([2340, 2340, 2340, 2340], ['Sample ID', 'Location', 'Wind Direction', 'Result'], air.map(r => [r.id, r.location, r.wind, r.result])) + EMPTY;
+  // 9. action items
+  const acts = obsLines(d.actions);
+  if (acts.length) b += H1('Action Items') + P('Based on the Site observations the following action items are presented for consideration:') + acts.map(t => `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:numPr><w:ilvl w:val="6"/><w:numId w:val="1"/></w:numPr></w:pPr>${R(t)}</w:p>`).join('');
+  // 10. closing – author signs on the left; reviewer signs outside the app on the right
+  b += H1('Closing') + P(`This observation report was completed by ${o.authorName}${o.reviewerName ? ` and reviewed by ${o.reviewerName}` : ''}, on behalf of Hive. Should there be any questions or concerns, please contact the undersigned at anytime.`, 'BodyText', '<w:keepNext/>') + P('Sincerely,', 'BodyText', '<w:keepNext/>');
+  const sc = (inner, w) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:vAlign w:val="bottom"/></w:tcPr>${inner}</w:tc>`;
+  const sp = (inner, keep = true) => `<w:p><w:pPr>${keep ? '<w:keepNext/>' : ''}<w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>${inner}</w:p>`;
+  const who = (n, t) => sp(R(n)) + sp(R(t)) + sp(R('Hive Engineering Limited'), false);
+  b += `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="9360" w:type="dxa"/>${NOBORDER}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="04A0" w:firstRow="0" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr><w:tblGrid><w:gridCol w:w="4680"/><w:gridCol w:w="4680"/></w:tblGrid>
+    <w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="720"/></w:trPr>${sc(sp(o.sig ? `<w:r><w:rPr><w:noProof/></w:rPr>${pic(o.sig.rid, o.sig.cx, o.sig.cy, 'Signature')}</w:r>` : ''), 4680)}${sc(sp(''), 4680)}</w:tr>
+    <w:tr><w:trPr><w:cantSplit/></w:trPr>${sc(who(o.authorName, o.authorTitle), 4680)}${sc(o.reviewerName ? who(o.reviewerName, o.reviewerTitle) : sp('', false), 4680)}</w:tr></w:tbl>`;
+  // sections (page setup and headers/footers exactly as in the template)
+  const SECT_MAIN = '<w:sectPr><w:footerReference w:type="default" r:id="rId10"/><w:headerReference w:type="first" r:id="rId11"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="966" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="720"/><w:titlePg/><w:docGrid w:linePitch="354"/></w:sectPr>';
+  const SECT_ACOVER = '<w:sectPr><w:headerReference w:type="default" r:id="rId12"/><w:footerReference w:type="default" r:id="rId13"/><w:headerReference w:type="first" r:id="rId14"/><w:footerReference w:type="first" r:id="rId15"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="6804" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="720"/><w:vAlign w:val="center"/><w:docGrid w:linePitch="354"/></w:sectPr>';
+  const SECT_PHOTOS = '<w:sectPr><w:headerReference w:type="default" r:id="rId24"/><w:footerReference w:type="default" r:id="rId25"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="966" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:pgNumType w:start="1"/><w:cols w:space="720"/><w:docGrid w:linePitch="354"/></w:sectPr>';
+  const SECT_BCOVER = '<w:sectPr><w:headerReference w:type="default" r:id="rId26"/><w:footerReference w:type="default" r:id="rId27"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="6804" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:pgNumType w:start="1"/><w:cols w:space="720"/><w:docGrid w:linePitch="354"/></w:sectPr>';
+  const endSect = s => `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${s}</w:pPr></w:p>`;
+  const cover = (letter, title) => `<w:p><w:pPr><w:pStyle w:val="AppendixHeading"/><w:spacing w:after="100"/><w:jc w:val="left"/></w:pPr>${R('Attachment ' + letter)}</w:p><w:p><w:pPr><w:pStyle w:val="AppendixTitle"/><w:jc w:val="left"/></w:pPr>${R(title)}</w:p>`;
+  const tail = [];
+  if (o.photos.length) {
+    let ph = P('Site Sketch/Photos', 'AppendixHeading', '<w:jc w:val="left"/>');
+    o.photos.forEach(p => {
+      ph += `<w:p><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="60"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:noProof/></w:rPr>${pic(p.rid, p.cx, p.cy, 'Photo ' + p.n)}</w:r></w:p>`;
+      ph += P(`Photo ${p.n}: ${obsDate(p.date)} – ${p.caption || ''}`.replace(/ – $/, ''), 'Caption', '<w:jc w:val="center"/>');
+    });
+    tail.push([SECT_ACOVER, cover('A', 'Photographs')], [SECT_PHOTOS, ph]);
+  }
+  if (o.attachB) tail.push([SECT_BCOVER, cover('B', o.attachBTitle || 'Air Monitoring Results') + EMPTY]);
+  // each section's sectPr closes it: main → (A cover → photos) → (B cover); the last one sits at the end of the body
+  let prev = SECT_MAIN;
+  tail.forEach(([sect, content]) => { b += endSect(prev) + content; prev = sect; });
+  return b + prev;
+}
+
+async function obsDocx(d, o, unzip, zip) {
+  // unzip/zip: fflate functions; o.template: Uint8Array of obs-template.docx; o.images: [{rid, name, bytes}]
+  const files = unzip(o.template);
+  const dec = new TextDecoder(), enc = new TextEncoder();
+  const X = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  files['word/document.xml'] = enc.encode(dec.decode(files['word/document.xml']).replace('{{BODY}}', obsDocxBody(d, o)));
+  files['word/_rels/document.xml.rels'] = enc.encode(dec.decode(files['word/_rels/document.xml.rels']).replace('{{RELS}}', o.images.map(im => `<Relationship Id="${im.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${im.name}"/>`).join('')));
+  const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  files['docProps/core.xml'] = enc.encode(dec.decode(files['docProps/core.xml']).replace('{{TITLE}}', X(o.title || 'Site Observation Report')).replace('{{AUTHOR}}', X(o.authorName || '')).split('{{NOW}}').join(now));
+  o.images.forEach(im => { files['word/media/' + im.name] = [im.bytes, {level: 0}]; });
+  return zip(files, {level: 6});
+}
+
+/* ================= OBSERVATION REPORTS (Word only) ================= */
+const OBS_MAX_PHOTOS = 60;
+const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const initials = name => String(name || '').split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase()).join('').slice(0, 3);
+const staffLabel = s => s ? `${s.full_name} (${initials(s.full_name)})` : '';
+const isObs = n => n && n.section === 'observation';
+const phKey = id => 'ph:' + id;
+const PH_URL = {};
+
+function viewObsList(app) {
+  const tab = S.param || 'mine';
+  const all = Object.values(S.notes).filter(n => !n._deleted && isObs(n));
+  const sets = {mine: all.filter(n => n.owner === S.me.id), review: all.filter(n => n.pm === S.me.id && n.owner !== S.me.id), all};
+  const list = (sets[tab] || sets.mine).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  const q = (LS.get('obsq') || '').toLowerCase();
+  const shown = list.filter(n => !q || [n.title, n.project_no, n.data && n.data.contractor, (staffById(n.owner) || {}).full_name].join(' ').toLowerCase().includes(q));
+  app.innerHTML = `<button class="btn sm" data-go="home">← Sections</button><div class="row" style="justify-content:space-between"><h1>Observation reports</h1><button class="btn pri" data-act="newobs">+ New observation report</button></div>
+  <div class="tabs"><button class="tab ${tab === 'mine' ? 'on' : ''}" data-go="obslist" data-p="mine">My reports</button>
+  ${S.me.is_pm || isAdmin() ? `<button class="tab ${tab === 'review' ? 'on' : ''}" data-go="obslist" data-p="review">Sent to me (${sets.review.filter(n => n.status === 'submitted').length})</button>` : ''}
+  ${isAdmin() ? `<button class="tab ${tab === 'all' ? 'on' : ''}" data-go="obslist" data-p="all">All reports</button>` : ''}</div>
+  <input type="search" id="oq" placeholder="Search location, project number, contractor, person" value="${esc(LS.get('obsq') || '')}" style="max-width:420px">
+  <div class="list" style="margin-top:10px">${shown.length ? shown.map(n => { const [c, t] = noteLabel(n); const o = staffById(n.owner), p = staffById(n.pm), d = n.data || {};
+    return `<button class="item" data-go="plan" data-p="${esc(n.id)}"><div class="grow"><div class="t">${esc(n.title || 'New observation report')}${n.project_no ? ' · ' + esc(n.project_no) : ''}</div>
+    <div class="muted small">${d.date ? esc(obsDate(d.date)) : ''}${(d.photos || []).length ? ` · ${(d.photos || []).length} photo${(d.photos || []).length > 1 ? 's' : ''}` : ''}${tab !== 'mine' && o ? ' · by ' + esc(o.full_name) : ''}${p ? ' · PM ' + esc(p.full_name) : ''} · ${fmtDT(n.updated_at)}</div>${n.email_error && n._queued ? `<div class="err small">${esc(n.email_error)}</div>` : ''}</div><span class="chip ${c}">${t}</span></button>`; }).join('')
+    : `<div class="empty">${tab === 'mine' ? 'No observation reports yet. Start one with “New observation report”.' : 'Nothing here.'}</div>`}</div>`;
+  $('#oq').oninput = e => { LS.set('obsq', e.target.value); const pos = e.target.selectionStart; viewObsList(app); const i = $('#oq'); i.focus(); i.setSelectionRange(pos, pos); };
+}
+
+function newObs(from) {
+  const id = uid(), now = new Date().toISOString(), f = from ? clone(from.data) : {};
+  const me = S.me, keep = k => (from ? f[k] : '') || '';
+  const data = {
+    projectNo: keep('projectNo'), date: today(), time: nowHM(), location: keep('location'), personnel: keep('personnel') || staffLabel(me),
+    prime: keep('prime'), contractor: keep('contractor'), weather: '',
+    entries: [{id: uid(), time: nowHM(), text: ''}],
+    equipment: from ? (f.equipment || []) : [],
+    crew: from ? (f.crew || []).map(r => ({...r})) : [{role: 'Supervisor(s)', name: '', contact: ''}, {role: 'No. Labourers', name: '', contact: ''}, {role: 'No. Operators', name: '', contact: ''}],
+    workPlanned: '', ppe: '', security: '', wasteWhere: '', wasteSecure: '', air: [], actions: '', photos: [],
+    authorName: LS.get('obsAuthorName:' + me.id) || me.full_name, authorTitle: LS.get('obsAuthorTitle:' + me.id) || me.title || '',
+    reviewerName: keep('reviewerName'), reviewerTitle: keep('reviewerTitle'), attachB: from ? f.attachB !== false : true, attachBTitle: keep('attachBTitle') || 'Air Monitoring Results', sign: null
+  };
+  const n = {id, section: 'observation', kind: 'observation_report', owner: me.id, pm: from ? from.pm : null, status: 'draft', title: data.location, project_no: data.projectNo, data, created_at: now, updated_at: now, _dirty: true, _local: true};
+  S.notes[id] = n; saveNotes(); LS.set('step:' + id, '1'); go('plan', id);
+}
+
+function obsProblems(n) {
+  const d = n.data, out = [];
+  if (!(d.projectNo || '').trim()) out.push([1, 'Project #']);
+  if (!d.date) out.push([1, 'Date']);
+  if (!(d.location || '').trim()) out.push([1, 'Location']);
+  if (!n.pm) out.push([1, 'Project manager (reviewer)']);
+  if (!(d.entries || []).some(e => obsLines(e.text).length)) out.push([2, 'At least one general observation']);
+  if (!(d.authorName || '').trim()) out.push([4, 'Your name as it appears on the report']);
+  if (!(d.sign && d.sign.sig)) out.push([4, 'Your signature']);
+  return out;
+}
+
+function viewObs(app) {
+  const n = P, d = n.data, ed = canEdit(n), [c, t] = noteLabel(n);
+  let step = Number(LS.get('step:' + n.id) || 1); if (step > 4) step = 4;
+  app.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-start"><div><button class="btn sm" data-go="obslist">← Observation reports</button>
+    <h1>${esc(d.location || 'New observation report')}</h1><div class="row small muted"><span class="chip ${c}">${t}</span>${d.projectNo ? esc(d.projectNo) + ' · ' : ''}${d.date ? esc(obsDate(d.date)) + ' · ' : ''}${esc((staffById(n.owner) || {}).full_name || '')}${n.submitted_at ? ' · submitted ' + fmtDT(n.submitted_at) : ''}${n.emailed_at ? ' · emailed' : ''}${n.reviewed_at ? ' · reviewed ' + fmtDT(n.reviewed_at) : ''}</div></div>
+    <div class="row">${obsActions(n)}</div></div>
+  ${!ed && n.status !== 'draft' ? `<div class="band small">This report has been submitted and is read-only.${n.owner === S.me.id && n.status === 'submitted' ? ' Use “Reopen to edit” to change it and send it again.' : ''}</div>` : ''}
+  <div class="steps" role="tablist">${['Report info', 'Observations', `Photos (${(d.photos || []).length})`, ed ? 'Review &amp; send' : 'Summary'].map((l, i) => `<button class="${step === i + 1 ? 'on' : ''}" data-step="${i + 1}">${i + 1} · ${l}</button>`).join('')}</div>
+  <form id="pform" onsubmit="return false">${step === 1 ? obsStepInfo(n, ed) : step === 2 ? obsStepBody(n, ed) : step === 3 ? obsStepPhotos(n, ed) : obsStepSend(n, ed)}</form>`;
+  if (!ed) $$('#pform input,#pform select,#pform textarea').forEach(i => { if (!i.matches('[data-keep]')) i.disabled = true; });
+  $$('#pform textarea').forEach(autoGrow);
+  if (step === 3) { fillThumbs(); if (ed) dropZone(); }
+  if (step === 4) initPads(ed);
+}
+function obsActions(n) {
+  const out = [];
+  if (n.pm === S.me.id && n.status === 'submitted') out.push('<button class="btn go" data-act="reviewed">Mark reviewed</button>');
+  if (n.owner === S.me.id && n.status === 'submitted' && !n._queued) out.push('<button class="btn" data-act="reopen">Reopen to edit</button>');
+  out.push(`<button class="btn" data-act="word">${n.status === 'draft' ? 'Preview in Word' : 'Word'}</button>`);
+  out.push('<button class="btn" data-act="dupobs">Copy to new report</button>');
+  if ((n.owner === S.me.id && n.status === 'draft') || isAdmin()) out.push('<button class="btn warn" data-act="delplan">Delete</button>');
+  return out.join('');
+}
+function obsStepInfo(n, ed) {
+  const d = n.data;
+  return `<div class="card"><h2 style="margin-top:0">Report information</h2><div class="grid2">
+   ${fld('Project #', 'projectNo', d.projectNo, {req: 1})}
+   <label class="f">Project manager (reviewer) <span class="req">*</span><select data-pm>${['<option value="">Choose…</option>', ...pms().map(s => `<option value="${esc(s.id)}" ${s.id === n.pm ? 'selected' : ''}>${esc(s.full_name)}</option>`)].join('')}</select></label>
+   <label class="f">Date <span class="req">*</span><input type="date" data-f="date" value="${esc(d.date || '')}"></label>
+   <label class="f">Time<input type="time" data-f="time" value="${esc(d.time || '')}"></label></div>
+   ${fld('Location', 'location', d.location, {req: 1})}<p class="small muted" style="margin-top:-4px">Civic address, community, province – add the PID if you have it.</p>
+   <label class="f">Hive personnel<input type="text" data-f="personnel" value="${esc(d.personnel || '')}"></label>
+   ${ed ? `<div class="row small" style="margin:-2px 0 10px"><select data-addper style="max-width:260px;min-height:36px"><option value="">+ Add a Hive person…</option>${S.staff.filter(s => s.active !== false).map(s => `<option value="${esc(s.id)}">${esc(s.full_name)}</option>`).join('')}</select><span class="muted">Add designations by typing, e.g. “, Eng.L”.</span></div>` : ''}
+   <div class="grid2">${fld('Prime contractor', 'prime', d.prime)}${fld('Contractor on-site', 'contractor', d.contractor)}</div>
+   <label class="f">ECCC weather<input type="text" data-f="weather" value="${esc(d.weather || '')}" placeholder="e.g. 17°C, Cloudy, West-Southwest Wind at 21 kph, 100.5 kPa and falling"></label>
+   <p class="small muted">Current conditions: <a href="https://weather.gc.ca/" target="_blank" rel="noopener">weather.gc.ca</a></p></div>
+   <div class="row" style="justify-content:flex-end"><button type="button" class="btn pri" data-step="2">Next: observations →</button></div>`;
+}
+function obsRowsTable(key, cols, rows, ed, addLabel) {
+  return `<div class="tablewrap"><table class="ed"><thead><tr>${ed ? '<th></th>' : ''}${cols.map(([, l, w]) => `<th style="min-width:${w || 120}px">${esc(l)}</th>`).join('')}</tr></thead><tbody>
+   ${rows.map((r, i) => `<tr>${ed ? `<td><button type="button" class="btn sm warn" data-act="obsrowdel" data-t="${key}" data-i="${i}" aria-label="Remove row">✕</button></td>` : ''}${cols.map(([k]) => `<td><input type="text" data-ot="${key}" data-i="${i}" data-k="${k}" value="${esc(r[k] || '')}"></td>`).join('')}</tr>`).join('')}
+   ${rows.length ? '' : `<tr><td colspan="${cols.length + 1}" class="muted small">None – leave empty to leave this section out of the report.</td></tr>`}</tbody></table></div>
+   ${ed ? `<button type="button" class="btn sm" data-act="obsrowadd" data-t="${key}">+ ${esc(addLabel)}</button>` : ''}`;
+}
+function obsStepBody(n, ed) {
+  const d = n.data, ta = (k, label, help, rows = 3) => `<div class="card"><h2 style="margin-top:0">${esc(label)}</h2>${help ? `<p class="small muted">${esc(help)}</p>` : ''}<textarea data-f="${k}" rows="${rows}">${esc(d[k] || '')}</textarea></div>`;
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">General observations <span class="req">*</span></h2>${ed ? '<button type="button" class="btn sm pri" data-act="obsentryadd">+ Add time entry (now)</button>' : ''}</div>
+   <p class="small muted">One observation per line – each line becomes a bullet under its time.</p>
+   ${(d.entries || []).map((e, i) => `<div class="obsent"><div class="row" style="gap:8px"><label class="f" style="margin:0;max-width:150px">Time<input type="time" data-oe="${i}" data-k="time" value="${esc(e.time || '')}"></label>${ed && d.entries.length > 1 ? `<button type="button" class="btn sm warn" data-act="obsentrydel" data-i="${i}" style="margin-top:22px">Remove</button>` : ''}</div>
+     <textarea data-oe="${i}" data-k="text" rows="4" placeholder="SS arrived on-site.\nAttended contractor safety meeting.">${esc(e.text || '')}</textarea></div>`).join('')}</div>
+   <div class="card"><h2 style="margin-top:0">List of equipment on-site</h2>${obsRowsTable('equipment', [['type', 'Equipment type', 260], ['qty', 'Quantity', 90]], d.equipment || [], ed, 'Add equipment')}</div>
+   <div class="card"><h2 style="margin-top:0">Site personnel</h2>${obsRowsTable('crew', [['role', 'Personnel', 150], ['name', 'Name / number', 150], ['contact', 'Contact info (phone/email)', 200]], d.crew || [], ed, 'Add row')}</div>
+   ${ta('workPlanned', 'Work planned and discussions with contractor', 'A blank line starts a new paragraph.')}
+   ${ta('ppe', 'Personal protective equipment', '')}
+   ${ta('security', 'Abatement control & site security', '')}
+   <div class="card"><h2 style="margin-top:0">Waste storage</h2><label class="f">Where is the waste stored?<textarea data-f="wasteWhere" rows="3">${esc(d.wasteWhere || '')}</textarea></label>
+    <div class="f">Is it secure?<div class="row" style="gap:16px;margin-top:6px">${[['yes', 'Yes'], ['no', 'No'], ['na', 'N/A'], ['', 'Not recorded']].map(([v, l]) => `<label class="chk"><input type="radio" name="wsec" data-f="wasteSecure" value="${v}" ${(d.wasteSecure || '') === v ? 'checked' : ''}> ${l}</label>`).join('')}</div></div></div>
+   <div class="card"><h2 style="margin-top:0">Air monitoring results</h2>${obsRowsTable('air', [['id', 'Sample ID', 130], ['location', 'Location', 150], ['wind', 'Wind direction', 120], ['result', 'Result', 130]], d.air || [], ed, 'Add sample')}</div>
+   ${ta('actions', 'Action items', 'One action per line – they are numbered in the report.')}
+   <p class="small muted">Sections left empty are left out of the report, and the numbering adjusts.</p>
+   <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-step="1">← Report info</button><button type="button" class="btn pri" data-step="3">Next: photos →</button></div>`;
+}
+function obsStepPhotos(n, ed) {
+  const ph = n.data.photos || [];
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Photographs (Attachment A)</h2><span class="muted small">${ph.length} of ${OBS_MAX_PHOTOS}</span></div>
+   ${ed ? `<div id="odrop" class="drop"><b>Drag photos here</b><span class="muted small">or</span><div class="row" style="justify-content:center"><label class="btn pri">📷 Take photo<input type="file" accept="image/*" capture="environment" data-ophoto hidden></label><label class="btn">Choose photos<input type="file" accept="image/*" multiple data-ophoto hidden></label></div></div>` : ''}
+   ${ph.length ? `<div class="ophotos">${ph.map((p, i) => `<div class="ophoto"><div class="th"><img data-thumb="${esc(p.id)}" alt="Photo ${i + 1}"><span class="n">${i + 1}</span></div>
+     <div class="grow"><label class="f" style="margin:0">Caption<input type="text" data-ph="${i}" value="${esc(p.caption || '')}" placeholder="e.g. Containment chamber set-up in the right-wing offices."></label>
+     <div class="row" style="gap:8px;margin-top:6px"><label class="f" style="margin:0;max-width:170px">Date<input type="date" data-phd="${i}" value="${esc(p.date || '')}"></label>
+     ${ed ? `<span class="row" style="gap:4px;margin-top:20px"><button type="button" class="btn sm" data-act="ophup" data-i="${i}" ${i ? '' : 'disabled'} aria-label="Move up">↑</button><button type="button" class="btn sm" data-act="ophdown" data-i="${i}" ${i < ph.length - 1 ? '' : 'disabled'} aria-label="Move down">↓</button><button type="button" class="btn sm warn" data-act="ophdel" data-i="${i}">Remove</button></span>` : ''}
+     ${p.path || S.mode === 'demo' ? '' : '<span class="small muted" style="margin-top:20px">Not uploaded yet</span>'}</div></div></div>`).join('')}</div>` : '<p class="muted small">No photos yet. They go on the Attachment A pages, two to a page, with “Photo n: date – caption” under each.</p>'}</div>
+   <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-step="2">← Observations</button><button type="button" class="btn pri" data-step="4">Next: review →</button></div>`;
+}
+function obsStepSend(n, ed) {
+  const d = n.data, pr = obsProblems(n), pm = staffById(n.pm), list = mailList('observation');
+  return `<div class="grid2"><div class="card"><h2 style="margin-top:0">${ed ? 'Before you send' : 'Summary'}</h2>
+    ${ed ? (pr.length ? `<ul class="check">${pr.map(([s, m]) => `<li class="no">✕ ${esc(m)} <button type="button" class="btn sm" data-step="${s}">Go to page ${s}</button></li>`).join('')}</ul>` : '<p style="color:#3c7d16;font-weight:700">✓ Everything needed is filled in and signed.</p>') : ''}
+    <p class="small">${(d.entries || []).reduce((a, e) => a + obsLines(e.text).length, 0)} observations · ${(d.photos || []).length} photos · ${(d.air || []).length} air samples · ${obsLines(d.actions).length} action items</p>
+    <button type="button" class="btn" data-act="word" data-keep>${ed ? 'Preview in Word' : 'Download Word report'}</button></div>
+   <div class="card"><h2 style="margin-top:0">Send to</h2><p><b>${pm ? esc(pm.full_name) : 'No project manager chosen'}</b>${pm ? `<br><span class="muted">${esc(pm.email)}</span>` : ''}</p>
+    ${list.length ? `<p class="small"><b>Also sent to:</b> ${list.map(esc).join(', ')}</p>` : ''}
+    <p class="muted small">The Word report is emailed to the PM, with a copy to you${list.length ? ' and the observation email list' : ''}. If you are offline it waits on this device and sends itself when you are back online.</p></div></div>
+   <div class="card"><h2 style="margin-top:0">Sign-off</h2><div class="grid2">
+    <div><h3 style="margin-top:0">Completed by (left)</h3><label class="f">Name as on the report <span class="req">*</span><input type="text" data-f="authorName" data-remember="obsAuthorName" value="${esc(d.authorName || '')}" placeholder="Isaac Amponsah, B.Sc."></label>
+     <label class="f">Job title<input type="text" data-f="authorTitle" data-remember="obsAuthorTitle" value="${esc(d.authorTitle || '')}" placeholder="Project Technologist"></label></div>
+    <div><h3 style="margin-top:0">Reviewed by (right)</h3><label class="f">Name as on the report<input type="text" data-f="reviewerName" value="${esc(d.reviewerName || '')}" placeholder="${esc(pm ? pm.full_name : 'Steve Schaller, Eng.L')}"></label>
+     <label class="f">Job title<input type="text" data-f="reviewerTitle" value="${esc(d.reviewerTitle || '')}" placeholder="${esc((pm && pm.title) || 'Director of Environmental Services - NS')}"></label>
+     <p class="small muted">The reviewer signs outside the app – their signature space is left blank.</p></div></div>
+    ${signBlock('sign', 'Your signature', 'Goes above your name on the left of the sign-off.', d.sign, ed)}</div>
+   <div class="card"><label class="chk"><input type="checkbox" data-f="attachB" ${d.attachB !== false ? 'checked' : ''}> <span>Include the <b>Attachment B</b> cover page (the lab results are added outside the app)</span></label>
+    ${d.attachB !== false ? `<label class="f" style="margin-top:8px">Attachment B title<input type="text" data-f="attachBTitle" value="${esc(d.attachBTitle || 'Air Monitoring Results')}"></label>` : ''}</div>
+   ${ed ? `<div class="sticky-actions"><button type="button" class="btn" data-step="3">← Photos</button><button type="button" class="btn pri" data-act="obssubmit" ${pr.length ? 'disabled' : ''}>Submit to PM</button></div>` : ''}`;
+}
+
+/* photos: kept as files on the device (IndexedDB) and in the hn-photos bucket – not inside the note, so syncing stays light */
+async function shrinkToBlob(file, max = 1600, q = 0.82) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(`“${file.name || 'That file'}” isn’t a picture this browser can read.`)); i.src = url; });
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', q));
+    return {blob, w: c.width, h: c.height};
+  } finally { URL.revokeObjectURL(url); }
+}
+async function addObsPhotos(files) {
+  const imgs = [...files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|webp|gif)$/i.test(f.name || ''));
+  if (!imgs.length) { toast('Those files aren’t photos.'); return; }
+  const room = OBS_MAX_PHOTOS - (P.data.photos || []).length; if (room <= 0) { toast(`Up to ${OBS_MAX_PHOTOS} photos per report.`); return; }
+  const list = imgs.slice(0, room); if (imgs.length > room) toast(`Only ${room} more photo${room > 1 ? 's' : ''} fit (up to ${OBS_MAX_PHOTOS}).`);
+  P.data.photos = P.data.photos || []; toast(`Adding ${list.length} photo${list.length > 1 ? 's' : ''}…`, 1500);
+  for (const f of list) {
+    try { const {blob, w, h} = await shrinkToBlob(f), id = uid(); await DB.set(phKey(id), blob);
+      P.data.photos.push({id, caption: '', date: P.data.date || today(), at: new Date().toISOString(), w, h}); }
+    catch (e) { toast(e.message || String(e)); }
+  }
+  touch(); const y = scrollY; render(); scrollTo(0, y);
+}
+async function photoBlob(p) {
+  const b = await DB.get(phKey(p.id)); if (b) return b;
+  if (S.mode === 'live' && p.path && S.online) { const {data, error} = await Live.sb.storage.from('hn-photos').download(p.path); if (!error && data) { await DB.set(phKey(p.id), data); return data; } }
+  return null;
+}
+async function fillThumbs() {
+  for (const img of $$('img[data-thumb]')) {
+    const id = img.dataset.thumb, p = (P.data.photos || []).find(x => x.id === id); if (!p) continue;
+    if (!PH_URL[id]) { const b = await photoBlob(p); if (b) PH_URL[id] = URL.createObjectURL(b); }
+    if (PH_URL[id]) img.src = PH_URL[id]; else img.alt = S.online ? 'Photo not found' : 'Photo not on this device (offline)';
+  }
+}
+function dropZone() {
+  const z = $('#odrop'); if (!z) return;
+  ['dragenter', 'dragover'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => z.addEventListener(ev, e => { e.preventDefault(); z.classList.remove('over'); }));
+  z.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files; if (f && f.length) addObsPhotos(f); });
+}
+async function removeObsPhoto(i) {
+  const p = P.data.photos[i]; P.data.photos.splice(i, 1); touch();
+  try { await DB.set(phKey(p.id), undefined); } catch (e) {}
+  if (PH_URL[p.id]) { URL.revokeObjectURL(PH_URL[p.id]); delete PH_URL[p.id]; }
+  if (S.mode === 'live' && p.path && S.online) Live.sb.storage.from('hn-photos').remove([p.path]).catch(() => {});
+}
+
+/* Word export */
+async function ensureFflate() {
+  if (window.fflate) return;
+  try { await loadScript('vendor/fflate.min.js'); } catch (e) { await loadScript('https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js'); }
+}
+async function obsTemplate() {
+  const r = await fetch(OBS_TPL_URL); if (!r.ok) throw new Error('The Word template (obs-template.docx) is missing on the website.');
+  return new Uint8Array(await r.arrayBuffer());
+}
+async function sigForWord(dataUrl) { // crop the drawn signature to the ink, keep it on white
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = dataUrl; });
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) { const k = (y * c.width + x) * 4; if (px[k + 3] > 20 && px[k] + px[k + 1] + px[k + 2] < 600) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+  if (x1 < 0) return null;
+  const m = 6; x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(c.width - 1, x1 + m); y1 = Math.min(c.height - 1, y1 + m);
+  const o = document.createElement('canvas'); o.width = x1 - x0 + 1; o.height = y1 - y0 + 1; o.getContext('2d').drawImage(c, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+  const blob = await new Promise(res => o.toBlob(res, 'image/png'));
+  return {bytes: new Uint8Array(await blob.arrayBuffer()), w: o.width, h: o.height};
+}
+async function obsWord(n) {
+  const d = n.data, EMU = 914400;
+  await ensureFflate();
+  const template = await obsTemplate(), images = [], photos = [], missing = [];
+  for (const [i, p] of (d.photos || []).entries()) {
+    const b = await photoBlob(p); if (!b) { missing.push(i + 1); continue; }
+    const W = 5.6 * EMU, Hmax = 3.45 * EMU; let cx = W, cy = W * (p.h || 3) / (p.w || 4); if (cy > Hmax) { cy = Hmax; cx = Hmax * (p.w || 4) / (p.h || 3); }
+    const rid = 'rIdHnP' + (i + 1); images.push({rid, name: `hn-photo-${i + 1}.jpeg`, bytes: new Uint8Array(await b.arrayBuffer())});
+    photos.push({rid, cx: Math.round(cx), cy: Math.round(cy), n: photos.length + 1, caption: p.caption, date: p.date || d.date});
+  }
+  if (missing.length) throw new Error(`Photo${missing.length > 1 ? 's' : ''} ${missing.join(', ')} ${missing.length > 1 ? 'aren’t' : 'isn’t'} on this device${S.online ? ' or in the cloud' : ' – go online to download them'}.`);
+  let sig = null;
+  if (d.sign && d.sign.sig) { const s = await sigForWord(d.sign.sig); if (s) { const h = Math.min(0.6 * EMU, (1.9 * EMU) * s.h / s.w), w = h * s.w / s.h; images.push({rid: 'rIdHnSig', name: 'hn-signature.png', bytes: s.bytes}); sig = {rid: 'rIdHnSig', cx: Math.round(w), cy: Math.round(h)}; } }
+  const pm = staffById(n.pm);
+  const bytes = await obsDocx(d, {template, images, photos, sig, attachB: d.attachB !== false, attachBTitle: d.attachBTitle,
+    authorName: (d.authorName || '').trim() || (staffById(n.owner) || {}).full_name || '', authorTitle: d.authorTitle || '',
+    reviewerName: (d.reviewerName || '').trim() || (pm ? pm.full_name : ''), reviewerTitle: (d.reviewerTitle || '').trim() || (pm && pm.title) || '',
+    title: `Site Observation Report – ${d.projectNo || ''}`}, fflate.unzipSync, fflate.zipSync);
+  return new Blob([bytes], {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+const wordName = n => `${(n.data.projectNo || 'Project').trim()} - ${n.data.date || today()} - Observation Report.docx`.replace(/[\\/:*?"<>|]/g, '-');
+async function obsWordAction(n) {
+  toast('Building the Word report…', 2500);
+  try {
+    let b = null;
+    if (S.mode === 'live' && n.status !== 'draft' && n.pdf_path && S.online && !n._queued) { try { b = await Live.pdf(n); } catch (e) { b = null; } }
+    if (!b) b = await obsWord(n);
+    saveFile(b, wordName(n));
+  } catch (e) { toast(e.message || String(e), 6000); }
+}
+async function submitObs() {
+  const pr = obsProblems(P); if (pr.length) { toast('Fill in the missing items first.'); return; }
+  const pm = staffById(P.pm), list = mailList('observation');
+  if (!await ask('Submit observation report?', `The Word report will be emailed to ${pm.full_name} (${pm.email}), with a copy to you${list.length ? ' and ' + list.length + ' other' + (list.length > 1 ? 's' : '') : ''}. You won’t be able to edit it unless you reopen it.`, 'Submit')) return;
+  let blob; try { toast('Building the Word report…', 2500); blob = await obsWord(P); } catch (e) { toast(e.message || String(e), 6000); return; }
+  P.status = 'submitted'; P.submitted_at = new Date().toISOString(); P.data.submittedBy = S.me.id; P.email_error = null; touch();
+  if (S.mode === 'demo') { P._dirty = false; await saveNotes(); render(); obsEmailPreview(P, blob); return; }
+  P._queued = true; S.outbox = S.outbox.filter(o => o.id !== P.id); S.outbox.push({id: P.id, pdf: blob, ext: 'docx'});
+  await DB.set(key('outbox'), S.outbox); await saveNotes(); render();
+  if (S.online) { toast('Sending…'); await sync(); const n = S.notes[P.id]; toast(n && !n._queued ? 'Submitted and emailed to ' + pm.full_name : 'Saved. It will retry sending.', 5000); render(); }
+  else toast('You are offline. The report is saved and will send itself when you are back online.', 5000);
+}
+function obsEmailPreview(n, blob) {
+  const pm = staffById(n.pm), me = staffById(n.owner), cc = [me.email, ...mailList('observation')].filter((a, i, l) => a && a !== pm.email && l.indexOf(a) === i);
+  const m = modal(`<div class="mhead"><h2>Email that would be sent</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <div class="band small">Demo mode – nothing was sent. With the server set up this goes out automatically.</div>
+   <p><b>To:</b> ${esc(pm.full_name)} &lt;${esc(pm.email)}&gt;<br><b>Cc:</b> ${cc.map(esc).join(', ')}<br><b>Subject:</b> ${esc(n.data.location)} - ${esc(n.data.projectNo)} - Observation Report</p>
+   <p><b>Attachment:</b> ${esc(wordName(n))}</p><div class="row"><button class="btn pri" id="dl">Download the Word report</button><button class="btn" data-x>Close</button></div>`, 'narrow');
+  $('#dl', m).onclick = () => saveFile(blob, wordName(n));
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
+}
+function reviewerFromPm() { // fill the reviewer lines from the chosen PM unless they were typed by hand
+  const pm = staffById(P.pm); if (!pm) return; const d = P.data;
+  if (!d.reviewerName || d._revAuto) { d.reviewerName = pm.full_name; d.reviewerTitle = pm.title || d.reviewerTitle || ''; d._revAuto = true; }
+}
+
+/* events for the observation editor (the shared plan handlers cover data-f, data-pm, data-sn, data-ph) */
+document.addEventListener('input', e => {
+  const t = e.target; if (!P || !isObs(P) || S.view !== 'plan' || !t.closest('#pform')) return;
+  if (t.dataset.oe != null) { P.data.entries[+t.dataset.oe][t.dataset.k] = t.value; touch(); }
+  else if (t.dataset.ot) { P.data[t.dataset.ot][+t.dataset.i][t.dataset.k] = t.value; touch(); }
+  else if (t.dataset.phd != null) { P.data.photos[+t.dataset.phd].date = t.value; touch(); }
+  if (t.dataset.remember) LS.set(t.dataset.remember + ':' + S.me.id, t.value);
+  if (t.dataset.f === 'reviewerName' || t.dataset.f === 'reviewerTitle') P.data._revAuto = false;
+  if (t.dataset.f === 'location') { const h = $('h1'); if (h) h.textContent = t.value || 'New observation report'; }
+});
+document.addEventListener('change', e => {
+  const t = e.target; if (!P || !isObs(P) || S.view !== 'plan' || !t.closest('#pform')) return;
+  if (t.matches('[data-ophoto]') && t.files && t.files.length) { const f = [...t.files]; t.value = ''; addObsPhotos(f); }
+  if (t.matches('[data-addper]') && t.value) { const s = staffById(t.value), cur = (P.data.personnel || '').trim(); if (s && !cur.includes(s.full_name)) { P.data.personnel = (cur ? cur + ', ' : '') + staffLabel(s); const i = $('[data-f=personnel]'); if (i) i.value = P.data.personnel; touch(); } t.value = ''; }
+  if (t.matches('[data-pm]')) { reviewerFromPm(); touch(); }
+  if (t.dataset.f === 'attachB') render();
+});
+async function obsClick(act, a, i) {
+  switch (act) {
+    case 'newobs': newObs(); return true;
+    case 'dupobs': newObs(P); toast('Copied the project details. Observations, photos and the signature were cleared.'); return true;
+    case 'obsentryadd': P.data.entries.push({id: uid(), time: nowHM(), text: ''}); touch(); render(); setTimeout(() => { const l = $$('[data-oe][data-k=text]').pop(); if (l) { l.focus(); l.scrollIntoView({block: 'center'}); } }, 50); return true;
+    case 'obsentrydel': if (!obsLines(P.data.entries[i].text).length || await ask('Remove time entry?', 'Remove this time and its observations?', 'Remove', 1)) { P.data.entries.splice(i, 1); touch(); render(); } return true;
+    case 'obsrowadd': { const k = a.dataset.t, blank = {equipment: {type: '', qty: ''}, crew: {role: '', name: '', contact: ''}, air: {id: '', location: '', wind: '', result: ''}}[k]; P.data[k] = P.data[k] || []; P.data[k].push(blank); touch(); render(); setTimeout(() => { const l = $$(`[data-ot="${k}"]`); const f = l[l.length - Object.keys(blank).length]; if (f) f.focus(); }, 50); return true; }
+    case 'obsrowdel': P.data[a.dataset.t].splice(i, 1); touch(); render(); return true;
+    case 'ophup': case 'ophdown': { const ph = P.data.photos, j = act === 'ophup' ? i - 1 : i + 1; if (j < 0 || j >= ph.length) return true; [ph[i], ph[j]] = [ph[j], ph[i]]; touch(); const y = scrollY; render(); scrollTo(0, y); return true; }
+    case 'ophdel': if (await ask('Remove photo?', 'Remove this photo from the report?', 'Remove', 1)) { await removeObsPhoto(i); const y = scrollY; render(); scrollTo(0, y); } return true;
+    case 'word': obsWordAction(P); return true;
+    case 'obssubmit': submitObs(); return true;
+  }
+  return false;
+}
+
 /* ---------- library (PC editable table) ---------- */
 let LIB = null; // working copy
 const libFilled = x => !!(x.name.trim() || (x.desc || '').trim() || (x.control || '').trim());
@@ -1453,6 +1894,7 @@ document.addEventListener('click', async e => {
   const dl = e.target.closest('[data-doc]'); if (dl && !dl.disabled) { e.preventDefault(); openDoc(dl.dataset.doc); return; }
   const a = e.target.closest('[data-act]'); if (!a) return;
   const act = a.dataset.act, i = a.dataset.i != null ? +a.dataset.i : null;
+  if (await obsClick(act, a, i)) return;
   switch (act) {
     case 'menu': openMenu(); break;
     case 'install': closeModal(); installApp(); break;
@@ -1481,7 +1923,7 @@ document.addEventListener('click', async e => {
     case 'reviewed': P.status = 'reviewed'; P.reviewed_at = new Date().toISOString(); P.reviewed_by = S.me.id; P._dirty = true; await saveNotes(); queueSync(200); render(); toast('Marked reviewed'); break;
     case 'reopen': if (await ask('Reopen to edit?', 'The plan goes back to draft. Submit it again when you are done, and the PM gets the new version.', 'Reopen')) { P.status = 'draft'; touch(); render(); } break;
     case 'dup': newPlan(P); toast('Copied. Signatures and dates were cleared.'); break;
-    case 'delplan': if (await ask('Delete plan?', 'This deletes the plan for everyone. It can’t be undone.', 'Delete', 1)) { if (S.mode === 'demo' || P._local) delete S.notes[P.id]; else { P._deleted = true; } S.outbox = S.outbox.filter(o => o.id !== P.id); await DB.set(key('outbox'), S.outbox); await saveNotes(); queueSync(200); go('list', null, true); } break;
+    case 'delplan': if (await ask('Delete plan?', 'This deletes the plan for everyone. It can’t be undone.', 'Delete', 1)) { if (S.mode === 'demo' || P._local) delete S.notes[P.id]; else { P._deleted = true; } S.outbox = S.outbox.filter(o => o.id !== P.id); await DB.set(key('outbox'), S.outbox); await saveNotes(); queueSync(200); if (isObs(P)) { for (const ph of P.data.photos || []) { try { await DB.set(phKey(ph.id), undefined); } catch (e) {} } if (S.mode === 'live' && S.online) { const paths = (P.data.photos || []).map(x => x.path).filter(Boolean); if (paths.length) Live.sb.storage.from('hn-photos').remove(paths).catch(() => {}); } go('obslist', null, true); } else go('list', null, true); } break;
     // library
     case 'libadd': LIB.unshift({id: 'L' + uid().slice(0, 8), name: '', kind: 'Activity', loc: 'Field', desc: '', resp: 'Employee', risk: '', control: '', residual: '', active: true}); LS.set('libq', ''); viewLibrary($('#app')); $('[data-li="0"] textarea').focus(); break;
     case 'libdel': if (!libFilled(LIB[i])) { LIB.splice(i, 1); viewLibrary($('#app')); $$('[data-act=libsave],[data-act=libundo]').forEach(b => b.disabled = JSON.stringify(LIB) === JSON.stringify(S.cfg.library)); break; } if (await ask('Delete row?', `Delete “${LIB[i].name}” from the library? Plans that already use it keep their copy. (Untick “In use” instead to hide it without deleting.)`, 'Delete', 1)) { LIB.splice(i, 1); viewLibrary($('#app')); } break;
@@ -1521,7 +1963,7 @@ document.addEventListener('click', async e => {
 });
 function promptText(title, label, val) { return new Promise(res => { const m = modal(`<h2>${esc(title)}</h2><form id="pt"><label class="f">${esc(label)}<input type="text" id="ptv" value="${esc(val || '')}" required></label><div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" data-x>Cancel</button><button class="btn pri">OK</button></div></form>`, 'narrow'); $('#ptv', m).focus(); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } }); $('#pt', m).onsubmit = e => { e.preventDefault(); const v = $('#ptv', m).value.trim(); closeModal(); res(v); }; }); }
 
-const VIEWS = {home: viewHome, list: viewList, plan: viewPlan, library: viewLibrary, docs: viewDocs, templates: viewTemplates, emergency: viewEmergency, admin: viewAdmin, texts: viewTexts, mailing: viewMailing};
+const VIEWS = {home: viewHome, list: viewList, plan: viewPlan, library: viewLibrary, docs: viewDocs, templates: viewTemplates, emergency: viewEmergency, admin: viewAdmin, texts: viewTexts, mailing: viewMailing, obslist: viewObsList};
 
 /* ---------- demo sample ---------- */
 function seedDemoNotes() {
