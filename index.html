@@ -202,7 +202,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.7';
+const VERSION = '0.3.8';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -301,7 +301,7 @@ function docSort(a, b) { const pa = a.code.split(' '), pb = b.code.split(' '); i
 function seedConfig() {
   const library = SEED.library.map(x => ({...x}));
   return {
-    library, templates: clone(SEED.templates), register: defaultRegister(library, SEED.templates),
+    library, templates: clone(SEED.templates), register: defaultRegister(library, SEED.templates), mailing: {safety: [], esa: [], hazmat: [], observation: []},
     emergency: {fields: SEED.emergencyFields.slice(), communities: clone(SEED.communities)},
     texts: {...DEFAULT_TEXTS}
   };
@@ -827,7 +827,8 @@ function stepSubmit(n, ed) {
     </div>
    <div class="card"><h2 style="margin-top:0">Send to</h2>
     <p><b>${pm ? esc(pm.full_name) : 'No project manager chosen'}</b>${pm ? `<br><span class="muted">${esc(pm.email)}</span>` : ''}</p>
-    <p class="muted small">The PDF (Health &amp; Safety Plan + Hazard Assessment) is emailed to the PM, with a copy to you. If you are offline it waits on this device and sends itself when you are back online.</p>
+    ${mailList('safety').length ? `<p class="small"><b>Also sent to:</b> ${mailList('safety').map(esc).join(', ')}</p>` : ''}
+    <p class="muted small">The PDF (Health &amp; Safety Plan + Hazard Assessment) is emailed to the PM, with a copy to you${mailList('safety').length ? ' and the safety email list' : ''}. If you are offline it waits on this device and sends itself when you are back online.</p>
     ${ed ? `<div class="row"><button type="button" class="btn" data-act="preview">Preview PDF</button><button type="button" class="btn pri" data-act="submit" ${pr.length ? 'disabled' : ''}>Submit to PM</button></div>` : `<div class="row"><button type="button" class="btn" data-act="pdf">Download PDF</button></div>`}
    </div></div>
    ${codes.length ? `<div class="card"><h3 style="margin-top:0">SOP / SWP documents referenced</h3>${docChips(codes.join(', ').replace(/(SWP|SJP|SOP) /g, '$1 '), true)}<p class="muted small">Tap one to open it. ✓ means it’s saved on this device for use without a signal.</p></div>` : ''}
@@ -1056,7 +1057,7 @@ function emailPreview(n, blob) {
   const pm = staffById(n.pm), me = staffById(n.owner), T = S.cfg.texts;
   const m = modal(`<div class="mhead"><h2>Email that would be sent</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
    <div class="band small">Demo mode – nothing was sent. With the server set up this goes out automatically.</div>
-   <p><b>To:</b> ${esc(pm.full_name)} &lt;${esc(pm.email)}&gt;<br><b>Cc:</b> ${esc(me.full_name)} &lt;${esc(me.email)}&gt;<br><b>Subject:</b> ${esc(n.data.title)} - ${esc(n.data.projectNo)} - Safety Plan</p>
+   <p><b>To:</b> ${esc(pm.full_name)} &lt;${esc(pm.email)}&gt;<br><b>Cc:</b> ${esc(me.full_name)} &lt;${esc(me.email)}&gt;${mailList('safety').filter(a => a !== me.email && a !== pm.email).map(a => ', ' + esc(a)).join('')}<br><b>Subject:</b> ${esc(n.data.title)} - ${esc(n.data.projectNo)} - Safety Plan</p>
    <div class="card note" style="color:var(--ink)">${esc(T.emailBody)}\n\nSubmitted by ${esc(me.full_name)} on ${esc(fmtDT(n.submitted_at))}.\nOpen in Hive-Notes: ${esc(appUrl())}?note=${esc(n.id)}</div>
    <p><b>Attachment:</b> ${esc(pdfName(n))}</p><div class="row"><button class="btn pri" id="dl">Download the PDF</button><button class="btn" data-x>Close</button></div>`, 'narrow');
   $('#dl', m).onclick = () => saveFile(blob, pdfName(n));
@@ -1337,7 +1338,8 @@ function viewAdmin(app) {
    <button class="tile" data-go="docs"><b>SOP / SWP documents</b><span class="muted">${S.cfg.register.filter(r => r.file && r.status !== 'Retired').length} of ${S.cfg.register.filter(r => r.status !== 'Retired').length} have a file · upload on a PC</span></button>
    <button class="tile" data-go="templates"><b>Templates</b><span class="muted">${S.cfg.templates.length} templates</span></button>
    <button class="tile" data-go="emergency"><b>Emergency numbers</b><span class="muted">${S.cfg.emergency.communities.length} communities</span></button>
-   <button class="tile" data-go="texts"><b>Form wording</b><span class="muted">Purpose, notes, sign-off and email text</span></button></div>
+   <button class="tile" data-go="texts"><b>Form wording</b><span class="muted">Purpose, notes, sign-off and email text</span></button>
+   <button class="tile" data-go="mailing"><b>Report email lists</b><span class="muted">${MAIL_SECTIONS.map(([k, l]) => `${l}: ${mailList(k).length}`).join(' · ')}</span></button></div>
   <div class="row" style="justify-content:space-between"><h2>Staff (${st.length})</h2><button class="btn pri" data-act="addstaff">+ Add staff</button></div>
   <p class="muted small">Adding someone emails them an invitation link to set their password. Their user name is what they sign in with.</p>
   <div class="tblwrap"><table class="ed stack"><thead><tr><th>Name</th><th>User name</th><th>Email</th><th>Role</th><th>Project manager</th><th>Status</th><th></th></tr></thead><tbody>
@@ -1398,6 +1400,21 @@ function inviteInfo(s) {
    <div class="card note" style="color:var(--ink)">Hi ${esc(s.full_name.split(' ')[0])},\n\nYou’ve been added to Hive-Notes, Hive’s app for safety plans and site notes. It works on your phone and your PC, and offline in the field.\n\nYour user name: ${esc(s.username)}\nSet your password here: [secure link]\n\nAfter that, open ${esc(appUrl())} and sign in. On a phone, use “Add to Home Screen” so it opens like an app and works without a signal.</div>
    <div class="row" style="justify-content:flex-end"><button class="btn pri" data-x>OK</button></div>`, 'narrow');
   m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
+}
+/* ---------- default email lists: who always gets a copy of each section's reports ---------- */
+const MAIL_SECTIONS = [['safety', 'Safety plans'], ['esa', 'Phase I ESA'], ['hazmat', 'HazMat'], ['observation', 'Observation reports']];
+const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[a-z]{2,}$/i;
+const parseEmails = t => [...new Set(String(t || '').split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean))];
+const mailList = sec => ((S.cfg.mailing || {})[sec] || []);
+function viewMailing(app) {
+  const M = S.cfg.mailing || {};
+  app.innerHTML = `<button class="btn sm" data-go="admin">← Admin</button><h1>Report email lists</h1><p class="lead">These addresses get a copy of <b>every</b> report submitted in that section, as well as the project manager chosen on the report and the person who submitted it. One address per line (or separated by commas).</p>
+  <form id="mf"><div class="grid2">${MAIL_SECTIONS.map(([k, l]) => `<label class="f">${esc(l)}<textarea data-ml="${k}" rows="4" placeholder="safety@hiveneg.ca" autocapitalize="none" spellcheck="false">${esc((M[k] || []).join('\n'))}</textarea></label>`).join('')}</div>
+  <p class="err" id="me"></p><div class="sticky-actions"><button class="btn pri">Save email lists</button></div></form>`;
+  $('#mf').onsubmit = async e => { e.preventDefault(); const out = {}, bad = [];
+    $$('[data-ml]').forEach(x => { const l = parseEmails(x.value); l.filter(a => !EMAIL_RE.test(a)).forEach(a => bad.push(a)); out[x.dataset.ml] = l; });
+    if (bad.length) { $('#me').textContent = `Not an email address: ${bad.join(', ')}`; return; }
+    $('#me').textContent = ''; await saveCfg('mailing', out); toast('Email lists saved'); viewMailing(app); };
 }
 function viewTexts(app) {
   const T = S.cfg.texts;
@@ -1504,7 +1521,7 @@ document.addEventListener('click', async e => {
 });
 function promptText(title, label, val) { return new Promise(res => { const m = modal(`<h2>${esc(title)}</h2><form id="pt"><label class="f">${esc(label)}<input type="text" id="ptv" value="${esc(val || '')}" required></label><div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" data-x>Cancel</button><button class="btn pri">OK</button></div></form>`, 'narrow'); $('#ptv', m).focus(); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } }); $('#pt', m).onsubmit = e => { e.preventDefault(); const v = $('#ptv', m).value.trim(); closeModal(); res(v); }; }); }
 
-const VIEWS = {home: viewHome, list: viewList, plan: viewPlan, library: viewLibrary, docs: viewDocs, templates: viewTemplates, emergency: viewEmergency, admin: viewAdmin, texts: viewTexts};
+const VIEWS = {home: viewHome, list: viewList, plan: viewPlan, library: viewLibrary, docs: viewDocs, templates: viewTemplates, emergency: viewEmergency, admin: viewAdmin, texts: viewTexts, mailing: viewMailing};
 
 /* ---------- demo sample ---------- */
 function seedDemoNotes() {
