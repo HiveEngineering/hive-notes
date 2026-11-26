@@ -212,7 +212,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1160,7 +1160,7 @@ function obsDocxBody(d, o) {
     <w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="720"/></w:trPr>${sc(sp(o.sig ? `<w:r><w:rPr><w:noProof/></w:rPr>${pic(o.sig.rid, o.sig.cx, o.sig.cy, 'Signature')}</w:r>` : ''), 4680)}${sc(sp(''), 4680)}</w:tr>
     <w:tr><w:trPr><w:cantSplit/></w:trPr>${sc(who(o.authorName, o.authorTitle), 4680)}${sc(o.reviewerName ? who(o.reviewerName, o.reviewerTitle) : sp('', false), 4680)}</w:tr></w:tbl>`;
   // sections (page setup and headers/footers exactly as in the template)
-  const SECT_MAIN = '<w:sectPr><w:footerReference w:type="default" r:id="rId10"/><w:headerReference w:type="first" r:id="rId11"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="966" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="720"/><w:titlePg/><w:docGrid w:linePitch="354"/></w:sectPr>';
+  const SECT_MAIN = '<w:sectPr><w:footerReference w:type="default" r:id="rId10"/><w:headerReference w:type="first" r:id="rId11"/><w:footerReference w:type="first" r:id="rIdHnF1"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="966" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="720"/><w:titlePg/><w:docGrid w:linePitch="354"/></w:sectPr>';
   const SECT_ACOVER = '<w:sectPr><w:headerReference w:type="default" r:id="rId12"/><w:footerReference w:type="default" r:id="rId13"/><w:headerReference w:type="first" r:id="rId14"/><w:footerReference w:type="first" r:id="rId15"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="6804" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="720"/><w:vAlign w:val="center"/><w:docGrid w:linePitch="354"/></w:sectPr>';
   const SECT_PHOTOS = '<w:sectPr><w:headerReference w:type="default" r:id="rId24"/><w:footerReference w:type="default" r:id="rId25"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="966" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:pgNumType w:start="1"/><w:cols w:space="720"/><w:docGrid w:linePitch="354"/></w:sectPr>';
   const SECT_BCOVER = '<w:sectPr><w:headerReference w:type="default" r:id="rId26"/><w:footerReference w:type="default" r:id="rId27"/><w:pgSz w:w="12240" w:h="15840" w:code="1"/><w:pgMar w:top="6804" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/><w:pgNumType w:start="1"/><w:cols w:space="720"/><w:docGrid w:linePitch="354"/></w:sectPr>';
