@@ -202,7 +202,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.3.6';
+const VERSION = '0.3.7';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -363,15 +363,16 @@ const Live = {
     const {data} = await this.sb.auth.getSession();
     const ses = data.session;
     if (!ses) { const last = LS.get('lastUid'); return !S.online && last ? (await DB.get('live:me:' + last)) || null : null; }
+    if (ses.user.user_metadata && ses.user.user_metadata.must_change_password) S.needPassword = true;
     const cached = await DB.get('live:me:' + ses.user.id);
     if (S.online) { try { const me = await this.profile(ses.user); if (me) { if (!me.noProfile) { await DB.set('live:me:' + me.id, me); LS.set('lastUid', me.id); this.sb.rpc('hn_touch').then(() => {}, () => {}); } return me; } } catch (e) { console.warn(e); } }
     return cached || (S.online ? {id: ses.user.id, email: ses.user.email, noProfile: true} : null);
   },
   async profile(user) { const {data, error} = await this.sb.from('hn_staff').select('*').eq('id', user.id).maybeSingle(); if (error) throw error; return data || {id: user.id, email: user.email, noProfile: true}; },
   async emailFor(u) { u = u.trim(); if (u.includes('@')) return u; const {data, error} = await this.sb.rpc('hn_login_email', {p_username: u}); if (error) throw error; if (!data) throw new Error('User name not found or not active.'); return data; },
-  async signIn(u, p) { const email = await this.emailFor(u); const {data, error} = await this.sb.auth.signInWithPassword({email, password: p}); if (error) throw new Error(error.message === 'Invalid login credentials' ? 'User name or password is not right.' : error.message); const me = await this.profile(data.user); if (!me.noProfile) { await DB.set('live:me:' + me.id, me); LS.set('lastUid', me.id); this.sb.rpc('hn_touch').then(() => {}, () => {}); } return me; },
+  async signIn(u, p) { const email = await this.emailFor(u); const {data, error} = await this.sb.auth.signInWithPassword({email, password: p}); if (error) throw new Error(error.message === 'Invalid login credentials' ? 'User name or password is not right.' : error.message); if (data.user.user_metadata && data.user.user_metadata.must_change_password) S.needPassword = true; const me = await this.profile(data.user); if (!me.noProfile) { await DB.set('live:me:' + me.id, me); LS.set('lastUid', me.id); this.sb.rpc('hn_touch').then(() => {}, () => {}); } return me; },
   async signOut() { LS.set('lastUid', ''); await this.sb.auth.signOut(); },
-  async setPassword(pw) { const {error} = await this.sb.auth.updateUser({password: pw}); if (error) throw error; },
+  async setPassword(pw) { const {error} = await this.sb.auth.updateUser({password: pw, data: {must_change_password: false}}); if (error) throw new Error(/different from the old/i.test(error.message) ? 'Choose a password that is different from the temporary one.' : error.message); },
   async reset(u) { const email = await this.emailFor(u); const {error} = await this.sb.auth.resetPasswordForEmail(email, {redirectTo: appUrl()}); if (error) throw error; },
   async claimFirst(username, name) { const {error} = await this.sb.rpc('hn_claim_first_admin', {p_username: username, p_full_name: name}); if (error) throw error; },
   async pull() {
@@ -487,6 +488,7 @@ function render() {
 function viewLogin(app) {
   app.innerHTML = `<div class="login"><div class="logo">${logoHtml()}</div><h1 style="text-align:center">Hive-Notes</h1>
   <p class="lead" style="text-align:center">Sign in with your Hive-Notes user name and password.</p>
+  ${LINK_ERR ? `<div class="band small" style="background:#fff4d6"><b>That link didn’t work</b> – ${esc(LINK_ERR)}. Links work only once and expire after 24 hours, and some email systems open them early to scan them. Ask your Hive-Notes admin for a new invite or a temporary password.</div>` : ''}
   ${S.mode === 'demo' ? '<div class="band small">Demo mode (no server set up). Sign in as <b>kwhite</b> (field staff) or <b>sschaller</b> (admin and PM). Any password works.</div>' : ''}
   ${!S.online ? '<div class="band small">You are offline. The first sign-in on a device needs a connection; after that Hive-Notes works offline.</div>' : ''}
   <form id="lf"><label class="f">User name<input type="text" id="lu" autocomplete="username" autocapitalize="none" required value="${esc(LS.get('lastUser') || '')}"></label>
@@ -502,7 +504,7 @@ function viewLogin(app) {
   const f = $('#forgot'); if (f) f.onclick = async () => { const u = $('#lu').value.trim(); if (!u) { $('#le').textContent = 'Type your user name first.'; return; } try { await Live.reset(u); toast('A password reset link was emailed to you.'); } catch (err) { $('#le').textContent = err.message; } };
 }
 /* ---------- install as an app (shortcut on the phone home screen or PC desktop) ---------- */
-let INSTALL_EVT = null;
+let INSTALL_EVT = null, LINK_ERR = '';
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL_EVT = e; const slot = document.getElementById('instslot'); if (slot) slot.innerHTML = installBtn('btn'); });
 window.addEventListener('appinstalled', () => { INSTALL_EVT = null; toast('Hive-Notes is installed – open it from your home screen or desktop.', 5000); });
 const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -523,7 +525,7 @@ async function installApp() {
   m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
 }
 function viewSetPassword(app) {
-  app.innerHTML = `<div class="login"><div class="logo">${logoHtml()}</div><h1>Set your password</h1><p class="lead">Welcome${S.me.full_name ? ', ' + esc(S.me.full_name) : ''}. Choose a password for Hive-Notes. Your user name is <b>${esc(S.me.username || '')}</b>.</p>
+  app.innerHTML = `<div class="login"><div class="logo">${logoHtml()}</div><h1>Set your password</h1><p class="lead">Welcome${S.me.full_name ? ', ' + esc(S.me.full_name) : ''}. Choose your own password for Hive-Notes. Your user name is <b>${esc(S.me.username || '')}</b>.</p>
   <form id="pf"><label class="f">New password (8+ characters)<input type="password" id="p1" minlength="8" required autocomplete="new-password"></label>
   <label class="f" style="margin-top:10px">Type it again<input type="password" id="p2" minlength="8" required autocomplete="new-password"></label><p class="err" id="pe"></p><button class="btn pri" style="width:100%">Save password</button></form></div>`;
   $('#pf').onsubmit = async e => { e.preventDefault(); if ($('#p1').value !== $('#p2').value) { $('#pe').textContent = 'The two passwords do not match.'; return; } try { await Live.setPassword($('#p1').value); S.needPassword = false; history.replaceState(null, '', location.pathname); toast('Password saved'); render(); } catch (err) { $('#pe').textContent = err.message; } };
@@ -1341,7 +1343,7 @@ function viewAdmin(app) {
   <div class="tblwrap"><table class="ed stack"><thead><tr><th>Name</th><th>User name</th><th>Email</th><th>Role</th><th>Project manager</th><th>Status</th><th></th></tr></thead><tbody>
   ${st.map(s => `<tr><td><b>${esc(s.full_name)}</b><div class="muted small">${esc(s.title || '')}</div></td><td>${esc(s.username)}</td><td>${esc(s.email)}</td><td>${s.role === 'admin' ? 'Admin' : 'Staff'}</td><td>${s.is_pm ? 'Yes' : ''}</td>
    <td>${s.active === false ? '<span class="chip draft">Inactive</span>' : s.joined_at ? '<span class="chip reviewed">Active</span>' : '<span class="chip">Invited</span>'}</td>
-   <td><div class="row" style="gap:6px"><button class="btn sm" data-act="editstaff" data-id="${esc(s.id)}">Edit</button>${s.active !== false ? `<button class="btn sm" data-act="reinvite" data-id="${esc(s.id)}">Resend invite</button>` : ''}${s.id !== S.me.id ? `<button class="btn sm ${s.active === false ? '' : 'warn'}" data-act="toggleactive" data-id="${esc(s.id)}">${s.active === false ? 'Reactivate' : 'Deactivate'}</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>`;
+   <td><div class="row" style="gap:6px"><button class="btn sm" data-act="editstaff" data-id="${esc(s.id)}">Edit</button>${s.active !== false ? `<button class="btn sm" data-act="reinvite" data-id="${esc(s.id)}">Resend invite</button>` : ''}${s.active !== false && s.id !== S.me.id ? `<button class="btn sm" data-act="temppw" data-id="${esc(s.id)}">Set password</button>` : ''}${s.id !== S.me.id ? `<button class="btn sm ${s.active === false ? '' : 'warn'}" data-act="toggleactive" data-id="${esc(s.id)}">${s.active === false ? 'Reactivate' : 'Deactivate'}</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>`;
 }
 function staffForm(s) {
   const isNew = !s; s = s || {full_name: '', username: '', email: '', role: 'staff', is_pm: false, title: ''};
@@ -1363,6 +1365,22 @@ function staffForm(s) {
     if (!S.online && S.mode === 'live') { $('#sfx', m).textContent = 'Adding staff needs a connection.'; return; }
     try { if (isNew) { const r = await B().invite(row); closeModal(); if (S.mode === 'demo') inviteInfo(row); else { if (r && r.mail_error) manualInvite(row, r); else toast(`Invitation emailed to ${row.email}`); await Live.pull(); } } else { await B().updateStaff(row); if (row.id === S.me.id) S.me = {...S.me, ...row}; closeModal(); toast('Saved'); } render(); }
     catch (err) { $('#sfx', m).textContent = err.message || String(err); }
+  };
+}
+function tempPassword(s) { // no email needed: admin gives a temporary password; they choose their own at first sign-in
+  const w = ['Bee', 'Comb', 'Hex', 'Field', 'Site', 'Core', 'Pit', 'Well', 'Map', 'Log'], rnd = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+  const pw = `${w[rnd(10)]}-${w[rnd(10)]}-${1000 + rnd(9000)}`;
+  const msg = `Hi ${s.full_name.split(' ')[0]},\n\nYou’ve been added to Hive-Notes, Hive’s app for safety plans and site notes.\n\nOpen: ${appUrl()}\nUser name: ${s.username}\nTemporary password: ${pw}\n\nThe app will ask you to choose your own password when you first sign in. On a phone, tap “Install Hive-Notes as an app” on the sign-in page so it opens like an app and works without a signal.`;
+  const m = modal(`<div class="mhead"><h2>Set a temporary password for ${esc(s.full_name)}</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div>
+   <p>No email is needed. Send ${esc(s.full_name.split(' ')[0])} this message yourself (email, text or Teams). They sign in with it and then choose their own password. Any earlier invite link stops working.</p>
+   <textarea id="tpm" rows="9" readonly style="font-size:14px">${esc(msg)}</textarea><p class="err" id="tpe"></p>
+   <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn" data-x>Cancel</button><button class="btn pri" id="tpgo">Set password and copy message</button></div>`, 'narrow');
+  m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); });
+  $('#tpgo', m).onclick = async () => {
+    $('#tpgo', m).disabled = true;
+    try { await B().adminAction('temp_password', {id: s.id, password: pw}); } catch (x) { $('#tpe', m).textContent = x.message; $('#tpgo', m).disabled = false; return; }
+    try { await navigator.clipboard.writeText(msg); } catch (e) { const t = $('#tpm', m); t.select(); try { document.execCommand('copy'); } catch (e2) {} }
+    closeModal(); toast(`Temporary password set for ${s.full_name} – message copied, paste it to them.`, 6000);
   };
 }
 function manualInvite(s, r) { // the person was added, but the email service refused – let the admin send the link
@@ -1421,6 +1439,7 @@ document.addEventListener('click', async e => {
   switch (act) {
     case 'menu': openMenu(); break;
     case 'install': closeModal(); installApp(); break;
+    case 'temppw': tempPassword(staffById(a.dataset.id)); break;
     case 'signout': closeModal(); await B().signOut(); S.me = null; P = null; render(); break;
     case 'syncnow': closeModal(); sync(true); break;
     case 'chpw': closeModal(); S.needPassword = true; render(); break;
@@ -1504,6 +1523,8 @@ async function start() {
   addEventListener('online', () => { S.online = true; topbar(); sync(); });
   addEventListener('offline', () => { S.online = false; topbar(); });
   if (/type=(invite|recovery)/.test(location.hash)) S.needPassword = true;
+  { const h = new URLSearchParams(location.hash.slice(1) || location.search.slice(1)); if (h.get('error_code') || h.get('error')) { LINK_ERR = (h.get('error_description') || h.get('error_code') || h.get('error')).replace(/\+/g, ' ').replace(/\.$/, '').toLowerCase(); try { sessionStorage.setItem('hn-linkerr', LINK_ERR); } catch (e) {} history.replaceState(null, '', location.pathname); }
+    else { try { LINK_ERR = sessionStorage.getItem('hn-linkerr') || ''; sessionStorage.removeItem('hn-linkerr'); } catch (e) {} } }
   await DB.open();
   try { const r = await fetch('logo.png', {cache: 'no-cache'}); if (r.ok && (r.headers.get('content-type') || '').startsWith('image')) { const b = await r.blob(); LOGO_IMG = await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b); }); } } catch (e) {}
   try { const r = await fetch('hivenotes-config.json', {cache: 'no-cache'}); if (r.ok) S.conf = await r.json(); else S.conf = JSON.parse(LS.get('conf') || '{}'); if (r.ok) LS.set('conf', JSON.stringify(S.conf)); } catch (e) { try { S.conf = JSON.parse(LS.get('conf') || '{}'); } catch (x) { S.conf = {}; } }
@@ -1513,7 +1534,7 @@ async function start() {
   if (S.mode === 'demo' && !LS.get('demoUser')) S.me = null;
   if (S.me) await afterLogin(); else render();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost') && !window.__noSW) {
-    try { const reg = await navigator.serviceWorker.register('sw.js'); navigator.serviceWorker.addEventListener('controllerchange', () => { if (!window.__reloading) { window.__reloading = true; location.reload(); } }); reg.update(); } catch (e) {}
+    try { const hadSW = !!navigator.serviceWorker.controller; const reg = await navigator.serviceWorker.register('sw.js'); navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadSW && !window.__reloading) { window.__reloading = true; location.reload(); } }); reg.update(); } catch (e) {}
   }
   setInterval(() => { if (S.online && S.mode === 'live' && S.me) sync(); }, 5 * 60 * 1000);
 }
