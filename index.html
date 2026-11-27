@@ -132,6 +132,24 @@ input:disabled,textarea:disabled,select:disabled{opacity:.85;background:transpar
 .hzf input.sid{font-weight:700}
 .hzth{position:relative;display:inline-block}.hzth img{width:64px;height:48px;object-fit:cover;border-radius:6px;background:var(--field);display:block}
 .hzth .x{position:absolute;right:-6px;top:-6px;border:0;border-radius:99px;width:20px;height:20px;background:#c0392b;color:#fff;font-size:11px;cursor:pointer}
+.plbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0 8px}.plbar select{max-width:200px;min-height:38px}.plbar .sep{width:8px}
+#plwrap{position:relative;height:min(62vh,620px);min-height:320px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);touch-action:none;user-select:none;-webkit-user-select:none}
+#plsvg{width:100%;height:100%;display:block;cursor:grab}
+#plsvg .plgrid line{stroke:var(--line);stroke-width:1;opacity:.55}
+#plsvg .plroom{fill:light-dark(rgba(229,248,255,.55),rgba(0,173,239,.08));stroke:var(--ink);stroke-width:3}
+#plsvg .plroom.on{fill:light-dark(rgba(0,173,239,.16),rgba(0,173,239,.22));stroke:var(--blue)}
+#plsvg .pllabel{fill:var(--ink);font-weight:700;text-anchor:middle;pointer-events:none}
+#plsvg .pldim{fill:var(--muted);text-anchor:middle;pointer-events:none}#plsvg .pldim.edge{fill:var(--link);font-weight:700}
+#plsvg .plhandle{fill:var(--blue);stroke:#fff;stroke-width:2;cursor:nwse-resize}
+#plsvg .plgap{stroke:var(--card);stroke-width:5}
+#plsvg .plwin{stroke:var(--link);stroke-width:2}#plsvg .plwin.on,#plsvg .pldoor.on,#plsvg .plswing.on{stroke:var(--blue);stroke-width:3}
+#plsvg .pldoor{stroke:var(--ink);stroke-width:2}#plsvg .plswing{stroke:var(--muted);stroke-width:1.2;fill:none;stroke-dasharray:4 3}
+#plsvg .plmark{fill:var(--blue);stroke:var(--navy);stroke-width:1.5}#plsvg .plmark.on{stroke:#e67e22;stroke-width:3}
+#plsvg .plmarkt{fill:var(--ink);font-weight:700;pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:3}
+#plsvg .plscale line{stroke:var(--ink);stroke-width:2}#plsvg .plscale text{fill:var(--ink);font-size:12px;text-anchor:middle}
+#plmenu{position:absolute;z-index:6;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);max-width:calc(100% - 12px)}
+#plhint{position:absolute;right:10px;bottom:8px;font-size:12px;color:var(--muted);background:var(--card);padding:2px 8px;border-radius:8px;pointer-events:none;max-width:70%;text-align:right}
+.plsamples{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.plsamp{border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-size:13px;display:inline-flex;gap:6px;align-items:center}.plsamp.done{border-color:var(--blue);background:var(--light)}
 .hzds{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
 .obsent{border-left:4px solid var(--blue);padding:4px 0 8px 12px;margin:12px 0}
 .tablewrap{overflow-x:auto}
@@ -231,7 +249,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.5.0';
+const VERSION = '0.5.1';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1609,15 +1627,17 @@ function viewHaz(app) {
   const n = P, d = n.data, ed = canEdit(n), [c, t] = noteLabel(n);
   d.items = d.items || {}; d.roomInfo = d.roomInfo || {}; d.building = d.building || {tanks: []}; d.photos = d.photos || []; d.rooms = d.rooms || [];
   const page = LS.get('hz:' + n.id) || 'hub', sub = HZ_SUBS.find(s => s[0] === page);
+  if (PL.note !== n.id) Object.assign(PL, {note: n.id, undo: [], sel: null, place: null, fitted: {}, floor: null});
   app.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-start"><div>
     <button class="btn sm" data-go="${page === 'hub' ? 'hazlist' : 'plan'}" ${page === 'hub' ? '' : `data-p="${esc(n.id)}" data-hzgo="hub"`}>← ${page === 'hub' ? 'HazMat surveys' : 'Survey'}</button>
     <h1>${esc(d.buildingName || 'New survey')}</h1><div class="row small muted"><span class="chip ${c}">${t}</span>${d.projectNo ? esc(d.projectNo) + ' · ' : ''}${d.date ? esc(fmtD(d.date)) + ' · ' : ''}${esc((staffById(n.owner) || {}).full_name || '')}${n.submitted_at ? ' · submitted ' + fmtDT(n.submitted_at) : ''}${n.reviewed_at ? ' · reviewed ' + fmtDT(n.reviewed_at) : ''}</div></div>
     <div class="row">${hzActions(n)}</div></div>
   ${!ed && n.status !== 'draft' ? `<div class="band small">This survey has been submitted and is read-only.${n.owner === S.me.id && n.status === 'submitted' ? ' Use “Reopen to edit” to change it and send it again.' : ''}</div>` : ''}
-  <form id="pform" onsubmit="return false">${page === 'hub' ? hzHub(n, ed) : page === 'info' ? hzInfo(n, ed) : page === 'building' ? hzBuilding(n, ed) : page === 'send' ? hzSend(n, ed) : sub ? hzSubPage(n, ed, sub) : hzHub(n, ed)}</form>`;
+  <form id="pform" onsubmit="return false">${page === 'hub' ? hzHub(n, ed) : page === 'info' ? hzInfo(n, ed) : page === 'building' ? hzBuilding(n, ed) : page === 'plan' ? hzPlanPage(n, ed) : page === 'send' ? hzSend(n, ed) : sub ? hzSubPage(n, ed, sub) : hzHub(n, ed)}</form>`;
   if (!ed) $$('#pform input,#pform select,#pform textarea').forEach(i => { if (!i.matches('[data-keep]')) i.disabled = true; });
   $$('#pform textarea').forEach(autoGrow);
   if ($('img[data-thumb]')) fillThumbs();
+  if (page === 'plan') plInit(ed);
 }
 function hzActions(n) {
   const out = [];
@@ -1628,7 +1648,7 @@ function hzActions(n) {
   if ((n.owner === S.me.id && n.status === 'draft') || isAdmin()) out.push('<button class="btn warn" data-act="delplan">Delete</button>');
   return out.join('');
 }
-const HZ_ICON = {building: '<svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><path d="M8 42V14l16-8 16 8v28" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M4 42h40" stroke="currentColor" stroke-width="3"/><rect x="14" y="18" width="6" height="6" fill="currentColor"/><rect x="28" y="18" width="6" height="6" fill="currentColor"/><rect x="14" y="29" width="6" height="6" fill="currentColor"/><rect x="28" y="29" width="6" height="13" fill="currentColor"/></svg>'};
+const HZ_ICON = {plan: '<svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><rect x="5" y="7" width="38" height="34"/><path d="M5 24h16M27 24h16M24 7v10M24 24v17"/><path d="M21 24a6 6 0 0 1 6-6" stroke-width="2"/><circle cx="34" cy="33" r="3" fill="currentColor" stroke="none"/></svg>', building: '<svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><path d="M8 42V14l16-8 16 8v28" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M4 42h40" stroke="currentColor" stroke-width="3"/><rect x="14" y="18" width="6" height="6" fill="currentColor"/><rect x="28" y="18" width="6" height="6" fill="currentColor"/><rect x="14" y="29" width="6" height="6" fill="currentColor"/><rect x="28" y="29" width="6" height="13" fill="currentColor"/></svg>'};
 function hzHub(n, ed) {
   const d = n.data, pr = ed ? hzProblems(n) : [];
   return `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Project</h2><button type="button" class="btn sm" data-hzgo="info">${ed ? 'Edit' : 'View'} project info</button></div>
@@ -1636,6 +1656,7 @@ function hzHub(n, ed) {
    <p class="small muted" style="margin:4px 0 0">${(d.rooms || []).length} room${(d.rooms || []).length === 1 ? '' : 's'} · ${hzSamples(d)} samples · ${(d.photos || []).length} photos</p></div>
   <div class="hzgrid">
    <button type="button" class="hzsq bld" data-hzgo="building">${HZ_ICON.building}<b>Building information</b><span class="muted small">Construction, structure, heating, tanks</span></button>
+   <button type="button" class="hzsq bld" data-hzgo="plan">${HZ_ICON.plan}<b>Floor plan</b><span class="muted small">${(() => { const fl = ((d.plan || {}).floors || []).filter(f => f.rooms.length); return fl.length ? fl.map(f => `${esc(f.name)}: ${f.rooms.length} room${f.rooms.length > 1 ? 's' : ''}`).join(' · ') : 'Sketch rooms, doors, windows and sample locations'; })()}</span></button>
    ${HZ_SUBS.map(([k, l, h, col]) => { const cnt = hzSubCount(d, k); return `<button type="button" class="hzsq" data-hzgo="${k}" style="--acc:${col}"><span class="hzbar"></span><b>${esc(l)}</b><span class="muted small">${esc(h)}</span>${cnt ? `<span class="chip submitted">${cnt}</span>` : ''}</button>`; }).join('')}
   </div>
   ${(d.rooms || []).length ? `<div class="card"><h2 style="margin-top:0">Rooms</h2><div class="tablewrap"><table class="ed"><thead><tr><th>Room #/Description</th>${HZ_SUBS.map(s => `<th>${esc(s[1].split(' ')[0])}</th>`).join('')}<th>Photos</th></tr></thead><tbody>
@@ -1744,15 +1765,19 @@ async function hzPdf(n) {
     return yy + 10;
   };
   const box = (on, x, y) => { doc.setDrawColor(...navy); doc.setLineWidth(0.6); doc.rect(x, y - 7, 8, 8); if (on) { doc.setLineWidth(1.3); doc.lines([[2.2, 2.6], [4.2, -6]], x + 1.4, y - 3.6); doc.setLineWidth(0.6); } };
-  const rooms = d.rooms.length ? d.rooms : [{id: '', name: '—'}];
-  rooms.forEach((r, ri) => {
-    if (ri) doc.addPage(); head();
-    doc.autoTable({startY: 60, theme: 'plain', margin: {left: M, right: M}, styles: {fontSize: 8.6, cellPadding: 1.8, textColor: navy},
+  const hasAny = r => { const i = d.roomInfo[r.id] || {}; return HZ_T.some(t => hzItems(d, t.k).some(it => it.room === r.id)) || Object.values(i.ds || {}).some(Boolean) || i.dsNote || i.fixtures; };
+  const rooms = d.rooms.filter(hasAny), empty = d.rooms.filter(r => !hasAny(r));
+  const sheetHead = (roomLabel, y0 = 60) => {
+    doc.autoTable({startY: y0, theme: 'plain', margin: {left: M, right: M}, styles: {fontSize: 8.6, cellPadding: 1.8, textColor: navy},
       columnStyles: {0: {fontStyle: 'bold', cellWidth: 96}, 2: {fontStyle: 'bold', cellWidth: 70}, 4: {fontStyle: 'bold', cellWidth: 34}},
-      body: [['Building Name:', tx(d.buildingName), 'Project #:', tx(d.projectNo), 'Date:', fmtD(d.date)], ['Room #/Description:', tx(r.name), 'Surveyor(s):', {content: tx(d.surveyors), colSpan: 3}], ['Site Contact (Name and Position):', {content: tx(d.siteContact), colSpan: 5}]]});
+      body: [['Building Name:', tx(d.buildingName), 'Project #:', tx(d.projectNo), 'Date:', fmtD(d.date)], ['Room #/Description:', tx(roomLabel), 'Surveyor(s):', {content: tx(d.surveyors), colSpan: 3}], ['Site Contact (Name and Position):', {content: tx(d.siteContact), colSpan: 5}]]});
     let y = doc.lastAutoTable.finalY + 12; doc.setFont('helvetica', 'bold'); doc.setFontSize(8.6); doc.setTextColor(...navy); doc.text('Type of Assessment:', M, y); doc.setFont('helvetica', 'normal');
     HZ_ASSESS.forEach(([k, l], i) => { const x = M + 96 + i * 118; box((d.assess || []).includes(k), x, y); doc.text(l, x + 12, y); });
-    y += 14;
+    return y + 14;
+  };
+  rooms.forEach((r, ri) => {
+    if (ri) doc.addPage(); head();
+    let y = sheetHead(r.name);
     const info = d.roomInfo[r.id] || {};
     HZ_T.forEach(t => {
       const rows = hzItems(d, t.k).filter(it => it.room === r.id).map(it => t.cols.map(([k]) => String(it[k] || '')));
@@ -1761,9 +1786,13 @@ async function hzPdf(n) {
     });
     const ds = HZ_DS.filter(([k]) => (info.ds || {})[k]);
     if (ds.length || info.dsNote) y = table('Other Designated Substances (Visual Check)', [['s', 'Substance observed', 2], ['n', 'Notes', 4]], ds.map(([, l], i) => [l, i ? '' : (info.dsNote || '')]).concat(ds.length ? [] : [['—', info.dsNote]]), y);
-    const anything = HZ_T.some(t => hzItems(d, t.k).some(it => it.room === r.id)) || ds.length || info.fixtures;
-    if (!anything) { doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(110, 120, 126); doc.text('No regulated materials recorded in this room.', M, y + 8); }
   });
+  if (empty.length || !d.rooms.length) { // rooms surveyed with nothing recorded: listed together on one sheet
+    if (rooms.length) doc.addPage(); head();
+    const y = sheetHead(empty.length ? 'Rooms with no regulated materials recorded' : '—');
+    table('Rooms surveyed – no regulated materials recorded', [['n', 'Room #/Description', 1]], empty.map(r => [r.name]), y, {none: 'No rooms recorded.'});
+  }
+  plPdf(doc, d, head, M, W, H, navy); // floor plans, to scale
   // building information
   const b = d.building || {};
   doc.addPage(); head();
@@ -1856,6 +1885,309 @@ async function hzClick(act, a, i) {
     case 'hzsubmit': submitHaz(); return true;
   }
   return false;
+}
+
+/* ================= FLOOR PLAN SKETCH (HazMat surveys) =================
+   Units are metres. Rooms are rectangles {id, roomId (survey room), x, y, w, h}.
+   Openings sit on a room wall: {id, rid (plan room), side n|e|s|w, pos (centre, m from the wall's top/left end), width, type door|window, flip 0–3}.
+   Markers: {id, ref (survey entry id), x, y}. */
+const PL = {s: 40, ox: 60, oy: 60, sel: null, place: null, undo: [], floor: null, ptrs: new Map(), drag: null, menu: null, fitted: {}};
+const PL_SNAP = 0.05, PL_DOOR = 0.9, PL_WIN = 1.2;
+const plR = v => +(Math.round(v / PL_SNAP) * PL_SNAP).toFixed(2);
+const plFmt = v => (Math.round(v * 100) / 100).toFixed(2).replace(/\.?0+$/, '');
+function plData(d) { d.plan = d.plan || {floors: []}; if (!d.plan.floors.length) d.plan.floors.push({id: uid(), name: 'Ground floor', rooms: [], open: [], marks: []}); return d.plan; }
+function plFloor(d) { const pl = plData(d); let f = pl.floors.find(x => x.id === PL.floor); if (!f) { f = pl.floors[0]; PL.floor = f.id; } return f; }
+const plName = (d, r) => ((d.rooms || []).find(x => x.id === r.roomId) || {}).name || r.name || 'Room';
+function plWalls(r) { return {n: [r.x, r.y, r.x + r.w, r.y], s: [r.x, r.y + r.h, r.x + r.w, r.y + r.h], w: [r.x, r.y, r.x, r.y + r.h], e: [r.x + r.w, r.y, r.x + r.w, r.y + r.h]}; }
+const plWallLen = (r, side) => side === 'n' || side === 's' ? r.w : r.h;
+function plOpenGeom(r, o) { // centre point, direction along wall, inward normal
+  const [x1, y1] = plWalls(r)[o.side], horiz = o.side === 'n' || o.side === 's';
+  const cx = horiz ? x1 + o.pos : x1, cy = horiz ? y1 : y1 + o.pos;
+  const nx = o.side === 'w' ? 1 : o.side === 'e' ? -1 : 0, ny = o.side === 'n' ? 1 : o.side === 's' ? -1 : 0;
+  return {cx, cy, ux: horiz ? 1 : 0, uy: horiz ? 0 : 1, nx, ny};
+}
+function plPush() { const d = P.data; PL.undo.push(JSON.stringify(d.plan)); if (PL.undo.length > 60) PL.undo.shift(); }
+function plChanged(redrawPanel = true) { touch(); plDraw(); if (redrawPanel) plPanel(); }
+
+function hzPlanPage(n, ed) {
+  const d = n.data, pl = plData(d), f = plFloor(d);
+  return `<div class="hztabs">${[['hub', '← Survey'], ['building', 'Building information'], ['plan', 'Floor plan']].map(([k, l]) => `<button type="button" class="${k === 'plan' ? 'on' : ''}" data-hzgo="${k}">${l}</button>`).join('')}</div>
+  <div class="plbar">
+   <select id="plfloor" data-keep aria-label="Floor">${pl.floors.map(x => `<option value="${esc(x.id)}" ${x.id === f.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+   ${ed ? `<button type="button" class="btn sm" data-pl="floor+">+ Floor</button><button type="button" class="btn sm" data-pl="floorren">Rename</button><span class="sep"></span>
+   <button type="button" class="btn sm pri" data-pl="room+">+ Room</button><button type="button" class="btn sm" data-pl="undo" ${PL.undo.length ? '' : 'disabled'}>↶ Undo</button>` : ''}
+   <span class="grow"></span><button type="button" class="btn sm" data-pl="zoom-" aria-label="Zoom out">−</button><button type="button" class="btn sm" data-pl="zoom+" aria-label="Zoom in">+</button><button type="button" class="btn sm" data-pl="fit">Fit</button></div>
+  <div id="plwrap"><svg id="plsvg" xmlns="http://www.w3.org/2000/svg"></svg><div id="plmenu" hidden></div><div id="plhint"></div></div>
+  <div id="plpanel" class="card"></div>`;
+}
+function plInit(ed) {
+  const svg = $('#plsvg'); if (!svg) return;
+  if (!PL.fitted[PL.floor]) { plFit(); PL.fitted[PL.floor] = 1; }
+  plDraw(); plPanel();
+  const pt = e => { const b = svg.getBoundingClientRect(); return {sx: e.clientX - b.left, sy: e.clientY - b.top}; };
+  const world = ({sx, sy}) => ({x: (sx - PL.ox) / PL.s, y: (sy - PL.oy) / PL.s});
+  svg.addEventListener('pointerdown', e => {
+    try { svg.setPointerCapture(e.pointerId); } catch (x) {} const p = pt(e); PL.ptrs.set(e.pointerId, p); plMenu(null);
+    if (PL.ptrs.size === 2) { const [a, b] = [...PL.ptrs.values()]; PL.drag = {k: 'pinch', d0: Math.hypot(a.sx - b.sx, a.sy - b.sy), s0: PL.s, ox0: PL.ox, oy0: PL.oy, mx: (a.sx + b.sx) / 2, my: (a.sy + b.sy) / 2}; return; }
+    const w = world(p), f = plFloor(P.data), hit = plHit(w, f), tol = 14 / PL.s;
+    PL.drag = {k: 'pan', p0: p, ox0: PL.ox, oy0: PL.oy, moved: false, hit, w0: w};
+    if (!ed) return;
+    if (hit.t === 'handle') { plPush(); const r = f.rooms.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'resize', r, w0: r.w, h0: r.h}; }
+    else if (hit.t === 'mark' && PL.sel && PL.sel.id === hit.id) { plPush(); const m = f.marks.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'mark', m, x0: m.x, y0: m.y}; }
+    else if (hit.t === 'open' && PL.sel && PL.sel.id === hit.id) { plPush(); const o = f.open.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'open', o, pos0: o.pos}; }
+    else if (hit.t === 'room' && PL.sel && PL.sel.id === hit.id && !hit.wall) { plPush(); const r = f.rooms.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'move', r, x0: r.x, y0: r.y}; }
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!PL.ptrs.has(e.pointerId)) return; const p = pt(e); PL.ptrs.set(e.pointerId, p); const g = PL.drag; if (!g) return;
+    if (g.k === 'pinch' && PL.ptrs.size === 2) { const [a, b] = [...PL.ptrs.values()], k = Math.hypot(a.sx - b.sx, a.sy - b.sy) / g.d0; plZoomAt(g.mx, g.my, g.s0 * k, g); plDraw(); return; }
+    const dx = p.sx - g.p0.sx, dy = p.sy - g.p0.sy; if (!g.moved && Math.hypot(dx, dy) < 6) return; g.moved = true;
+    const f = plFloor(P.data), mx = dx / PL.s, my = dy / PL.s;
+    if (g.k === 'pan') { PL.ox = g.ox0 + dx; PL.oy = g.oy0 + dy; }
+    else if (g.k === 'move') { const sn = plSnapMove(g.r, plR(g.x0 + mx), plR(g.y0 + my), f); g.r.x = sn.x; g.r.y = sn.y; }
+    else if (g.k === 'resize') { g.r.w = Math.max(0.5, plR(g.w0 + mx)); g.r.h = Math.max(0.5, plR(g.h0 + my)); f.open.filter(o => o.rid === g.r.id).forEach(o => { o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(g.r, o.side) - o.width / 2); }); }
+    else if (g.k === 'mark') { g.m.x = plR(g.x0 + mx); g.m.y = plR(g.y0 + my); }
+    else if (g.k === 'open') { const r = f.rooms.find(x => x.id === g.o.rid), along = g.o.side === 'n' || g.o.side === 's' ? mx : my; g.o.pos = Math.min(Math.max(g.o.width / 2, plR(g.pos0 + along)), plWallLen(r, g.o.side) - g.o.width / 2); }
+    plDraw(g.k !== 'pan');
+  });
+  const up = e => {
+    const g = PL.drag; PL.ptrs.delete(e.pointerId); if (PL.ptrs.size) return; PL.drag = null; if (!g) return;
+    if (g.k === 'pinch') return;
+    if (g.moved) { if (g.k !== 'pan') plChanged(); return; }
+    if (g.k !== 'pan') PL.undo.pop(); // pressed but didn't drag: nothing changed
+    plTap(g.hit, g.w0, pt(e), ed);
+  };
+  svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  svg.addEventListener('wheel', e => { e.preventDefault(); const p = pt(e); plZoomAt(p.sx, p.sy, PL.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); plDraw(); }, {passive: false});
+}
+function plZoomAt(sx, sy, s, g) {
+  s = Math.min(400, Math.max(4, s)); const base = g || {s0: PL.s, ox0: PL.ox, oy0: PL.oy};
+  const wx = (sx - base.ox0) / base.s0, wy = (sy - base.oy0) / base.s0; PL.ox = sx - wx * s; PL.oy = sy - wy * s; PL.s = s;
+}
+function plFit() {
+  const svg = $('#plsvg'); if (!svg) return; const f = plFloor(P.data), W = svg.clientWidth || 600, H = svg.clientHeight || 400;
+  if (!f.rooms.length) { PL.s = 40; PL.ox = W / 2 - 2 * 40; PL.oy = H / 2 - 1.5 * 40; return; }
+  const x0 = Math.min(...f.rooms.map(r => r.x)), y0 = Math.min(...f.rooms.map(r => r.y)), x1 = Math.max(...f.rooms.map(r => r.x + r.w)), y1 = Math.max(...f.rooms.map(r => r.y + r.h));
+  PL.s = Math.min(160, Math.max(6, Math.min((W - 80) / (x1 - x0 || 1), (H - 80) / (y1 - y0 || 1))));
+  PL.ox = (W - (x1 - x0) * PL.s) / 2 - x0 * PL.s; PL.oy = (H - (y1 - y0) * PL.s) / 2 - y0 * PL.s;
+}
+function plSnapMove(r, x, y, f) { // line edges up with neighbouring rooms
+  const tol = 10 / PL.s; let bx = x, by = y, dxBest = tol, dyBest = tol;
+  for (const o of f.rooms) { if (o.id === r.id) continue;
+    for (const [a, b] of [[x, o.x], [x, o.x + o.w], [x + r.w, o.x], [x + r.w, o.x + o.w]]) { const dd = Math.abs(a - b); if (dd < dxBest) { dxBest = dd; bx = x + (b - a); } }
+    for (const [a, b] of [[y, o.y], [y, o.y + o.h], [y + r.h, o.y], [y + r.h, o.y + o.h]]) { const dd = Math.abs(a - b); if (dd < dyBest) { dyBest = dd; by = y + (b - a); } } }
+  return {x: plR(bx), y: plR(by)};
+}
+function plHit(w, f) {
+  const tol = 12 / PL.s, segDist = (px, py, x1, y1, x2, y2) => { const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2, t = l2 ? Math.max(0, Math.min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2)) : 0; return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1))); };
+  const sel = PL.sel && f.rooms.find(r => r.id === PL.sel.id);
+  if (sel && Math.hypot(w.x - (sel.x + sel.w), w.y - (sel.y + sel.h)) < tol * 1.4) return {t: 'handle', id: sel.id};
+  for (const m of f.marks) if (Math.hypot(w.x - m.x, w.y - m.y) < tol) return {t: 'mark', id: m.id};
+  for (const o of f.open) { const r = f.rooms.find(x => x.id === o.rid); if (!r) continue; const g = plOpenGeom(r, o);
+    if (segDist(w.x, w.y, g.cx - g.ux * o.width / 2, g.cy - g.uy * o.width / 2, g.cx + g.ux * o.width / 2, g.cy + g.uy * o.width / 2) < tol) return {t: 'open', id: o.id}; }
+  // walls: the selected room first, then any room
+  const rooms = sel ? [sel, ...f.rooms.filter(r => r !== sel)] : f.rooms;
+  for (const r of rooms) for (const [side, [x1, y1, x2, y2]] of Object.entries(plWalls(r))) if (segDist(w.x, w.y, x1, y1, x2, y2) < tol) {
+    const pos = side === 'n' || side === 's' ? w.x - r.x : w.y - r.y; return {t: 'room', id: r.id, wall: side, pos}; }
+  for (const r of [...f.rooms].reverse()) if (w.x > r.x && w.x < r.x + r.w && w.y > r.y && w.y < r.y + r.h) return {t: 'room', id: r.id};
+  return {t: 'none'};
+}
+function plTap(hit, w, scr, ed) {
+  const d = P.data, f = plFloor(d);
+  if (PL.place && ed) { // placing a sample marker
+    const it = HZ_T.flatMap(t => hzItems(d, t.k)).find(x => x.id === PL.place);
+    if (it) { plPush(); f.marks = f.marks.filter(m => m.ref !== it.id); f.marks.push({id: uid(), ref: it.id, x: plR(w.x), y: plR(w.y)}); }
+    PL.place = null; plChanged(); return;
+  }
+  if (hit.t === 'room' && hit.wall) { PL.sel = {t: 'room', id: hit.id}; plDraw(); plPanel(); if (ed) plMenu({rid: hit.id, side: hit.wall, pos: hit.pos, scr}); return; }
+  PL.sel = hit.t === 'none' || hit.t === 'handle' ? (hit.t === 'handle' ? PL.sel : null) : {t: hit.t, id: hit.id};
+  plDraw(); plPanel();
+}
+function plMenu(m) {
+  const el = $('#plmenu'); if (!el) return; PL.menu = m;
+  if (!m) { el.hidden = true; return; }
+  const r = plFloor(P.data).rooms.find(x => x.id === m.rid), len = plWallLen(r, m.side), dir = {n: 'north (top)', s: 'south (bottom)', e: 'east (right)', w: 'west (left)'}[m.side];
+  el.innerHTML = `<div class="small muted">Wall · ${plFmt(len)} m · ${dir} side of ${esc(plName(P.data, r))}</div>
+   <div class="row" style="gap:6px;margin-top:6px"><button type="button" class="btn sm" data-pl="door">🚪 Door</button><button type="button" class="btn sm" data-pl="window">🪟 Window</button><button type="button" class="btn sm pri" data-pl="roomside">＋ Room on this side</button><button type="button" class="btn sm" data-pl="menuclose" aria-label="Close">✕</button></div>`;
+  const wrap = $('#plwrap').getBoundingClientRect(); el.hidden = false;
+  el.style.left = Math.max(6, Math.min(m.scr.sx - 120, wrap.width - el.offsetWidth - 6)) + 'px'; el.style.top = Math.max(6, Math.min(m.scr.sy + 14, wrap.height - el.offsetHeight - 6)) + 'px';
+}
+function plDraw(light) {
+  const svg = $('#plsvg'); if (!svg || !P) return; const d = P.data, f = plFloor(d), s = PL.s, sel = PL.sel || {};
+  const X = x => PL.ox + x * s, Y = y => PL.oy + y * s, fs = Math.max(10, Math.min(15, s * 0.32));
+  // grid (1 m, or 5 m when zoomed out)
+  const W = svg.clientWidth || 600, H = svg.clientHeight || 400, step = s < 12 ? 5 : 1; let grid = '';
+  for (let gx = Math.floor(-PL.ox / s / step) * step; X(gx) < W; gx += step) grid += `<line x1="${X(gx)}" y1="0" x2="${X(gx)}" y2="${H}"/>`;
+  for (let gy = Math.floor(-PL.oy / s / step) * step; Y(gy) < H; gy += step) grid += `<line x1="0" y1="${Y(gy)}" x2="${W}" y2="${Y(gy)}"/>`;
+  let out = `<g class="plgrid">${grid}</g>`;
+  f.rooms.forEach(r => {
+    const on = sel.id === r.id;
+    out += `<rect class="plroom ${on ? 'on' : ''}" x="${X(r.x)}" y="${Y(r.y)}" width="${r.w * s}" height="${r.h * s}"/>`;
+    const cx = X(r.x + r.w / 2), cy = Y(r.y + r.h / 2), samples = f.marks.length;
+    out += `<text class="pllabel" x="${cx}" y="${cy - fs * 0.15}" font-size="${fs}">${esc(plName(d, r))}</text><text class="pldim" x="${cx}" y="${cy + fs * 1.05}" font-size="${fs * 0.78}">${plFmt(r.w)} × ${plFmt(r.h)} m</text>`;
+    if (on) {
+      out += `<text class="pldim edge" x="${cx}" y="${Y(r.y) - 6}" font-size="${fs * 0.8}">${plFmt(r.w)} m</text><text class="pldim edge" x="${X(r.x) - 6}" y="${cy}" font-size="${fs * 0.8}" text-anchor="end">${plFmt(r.h)} m</text>`;
+      out += `<rect class="plhandle" x="${X(r.x + r.w) - 8}" y="${Y(r.y + r.h) - 8}" width="16" height="16" rx="3"/>`;
+    }
+  });
+  f.open.forEach(o => {
+    const r = f.rooms.find(x => x.id === o.rid); if (!r) return; const g = plOpenGeom(r, o), on = sel.id === o.id;
+    const ax = g.cx - g.ux * o.width / 2, ay = g.cy - g.uy * o.width / 2, bx = g.cx + g.ux * o.width / 2, by = g.cy + g.uy * o.width / 2;
+    out += `<line class="plgap" x1="${X(ax)}" y1="${Y(ay)}" x2="${X(bx)}" y2="${Y(by)}"/>`;
+    if (o.type === 'window') {
+      const k = 0.06; out += `<line class="plwin ${on ? 'on' : ''}" x1="${X(ax + g.nx * k)}" y1="${Y(ay + g.ny * k)}" x2="${X(bx + g.nx * k)}" y2="${Y(by + g.ny * k)}"/><line class="plwin ${on ? 'on' : ''}" x1="${X(ax - g.nx * k)}" y1="${Y(ay - g.ny * k)}" x2="${X(bx - g.nx * k)}" y2="${Y(by - g.ny * k)}"/>`;
+    } else {
+      const hingeEnd = (o.flip || 0) & 1, inward = ((o.flip || 0) & 2) ? -1 : 1;
+      const hx = hingeEnd ? bx : ax, hy = hingeEnd ? by : ay, ox2 = hingeEnd ? ax : bx, oy2 = hingeEnd ? ay : by;
+      const lx = hx + g.nx * o.width * inward, ly = hy + g.ny * o.width * inward;
+      out += `<line class="pldoor ${on ? 'on' : ''}" x1="${X(hx)}" y1="${Y(hy)}" x2="${X(lx)}" y2="${Y(ly)}"/><path class="plswing ${on ? 'on' : ''}" d="M ${X(lx)} ${Y(ly)} A ${o.width * s} ${o.width * s} 0 0 ${plSweep(g, hingeEnd, inward)} ${X(ox2)} ${Y(oy2)}"/>`;
+    }
+  });
+  const items = HZ_T.flatMap(t => hzItems(d, t.k));
+  f.marks.forEach(m => { const it = items.find(x => x.id === m.ref); if (!it) return; const on = sel.id === m.id;
+    out += `<circle class="plmark ${on ? 'on' : ''}" cx="${X(m.x)}" cy="${Y(m.y)}" r="${on ? 9 : 7}"/><text class="plmarkt" x="${X(m.x) + 10}" y="${Y(m.y) + 4}" font-size="${Math.max(10, fs * 0.8)}">${esc(it.sid || '•')}</text>`; });
+  // scale bar
+  const nice = [0.5, 1, 2, 5, 10, 20, 50].find(v => v * s >= 60) || 50;
+  out += `<g class="plscale"><line x1="14" y1="${H - 16}" x2="${14 + nice * s}" y2="${H - 16}"/><line x1="14" y1="${H - 21}" x2="14" y2="${H - 11}"/><line x1="${14 + nice * s}" y1="${H - 21}" x2="${14 + nice * s}" y2="${H - 11}"/><text x="${14 + nice * s / 2}" y="${H - 24}">${nice} m</text></g>`;
+  svg.innerHTML = out;
+  const ub = $('[data-pl=undo]'); if (ub) ub.disabled = !PL.undo.length;
+  const hint = $('#plhint'); if (hint) hint.textContent = PL.place ? 'Tap the plan where the sample was taken.' : !f.rooms.length ? 'Start with “+ Room”.' : 'Tap a wall for a door, window or the next room · drag to move · pinch or scroll to zoom';
+}
+function plSweep(g, hingeEnd, inward) { // which way the door arc bends
+  const cross = (hingeEnd ? -1 : 1) * (g.ux * g.ny - g.uy * g.nx) * inward; return cross > 0 ? 1 : 0;
+}
+function plPanel() {
+  const el = $('#plpanel'); if (!el) return; const d = P.data, f = plFloor(d), ed = canEdit(P), sel = PL.sel;
+  if (!sel) { el.innerHTML = `<p class="small muted" style="margin:0">${f.rooms.length ? 'Tap a room to see its size and samples. Tap a wall to add a door, a window or the next room.' : 'Add the first room with “+ Room”, then tap its walls to add doors, windows and the rooms next to it. Sizes are in metres.'}</p>`; return; }
+  if (sel.t === 'room') {
+    const r = f.rooms.find(x => x.id === sel.id); if (!r) { PL.sel = null; return plPanel(); }
+    const items = r.roomId ? HZ_T.flatMap(t => hzItems(d, t.k).filter(it => it.room === r.roomId && (it.sid || '').trim()).map(it => [it, t])) : [];
+    el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">${esc(plName(d, r))}</h3>${ed ? '<button type="button" class="btn sm warn" data-pl="delroom">Delete room</button>' : ''}</div>
+     <div class="row" style="gap:10px;margin-top:8px;flex-wrap:wrap"><label class="f" style="margin:0;width:110px">Width (m)<input type="number" step="0.05" min="0.5" inputmode="decimal" data-plr="w" value="${plFmt(r.w)}"></label>
+     <label class="f" style="margin:0;width:110px">Length (m)<input type="number" step="0.05" min="0.5" inputmode="decimal" data-plr="h" value="${plFmt(r.h)}"></label>
+     ${ed ? '<button type="button" class="btn sm" data-pl="rotate" style="margin-top:20px">⟲ Swap</button>' : ''}
+     <label class="f" style="margin:0;min-width:190px;flex:1">Survey room<select data-plr="roomId">${(d.rooms || []).map(x => `<option value="${esc(x.id)}" ${x.id === r.roomId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>
+     <div style="margin-top:10px"><b class="small">Samples in this room</b>${items.length ? `<div class="plsamples">${items.map(([it, t]) => { const placed = f.marks.some(m => m.ref === it.id); return `<span class="plsamp ${placed ? 'done' : ''}"><b>${esc(it.sid)}</b> <span class="muted">${esc(t.t.replace('ACM - ', ''))}</span>${ed ? (placed ? ` <button type="button" class="btn sm" data-pl="unplace" data-id="${esc(it.id)}">Remove marker</button>` : ` <button type="button" class="btn sm pri" data-pl="place" data-id="${esc(it.id)}">Place</button>`) : (placed ? ' ✓' : '')}</span>`; }).join('')}</div>` : '<p class="small muted" style="margin:4px 0 0">No samples recorded in this room yet.</p>'}</div>`;
+    if (!ed) $$('#plpanel input,#plpanel select').forEach(i => i.disabled = true);
+  } else if (sel.t === 'open') {
+    const o = f.open.find(x => x.id === sel.id); if (!o) { PL.sel = null; return plPanel(); }
+    el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">${o.type === 'door' ? '🚪 Door' : '🪟 Window'}</h3>${ed ? '<button type="button" class="btn sm warn" data-pl="delopen">Delete</button>' : ''}</div>
+     <div class="row" style="gap:10px;margin-top:8px"><label class="f" style="margin:0;width:110px">Width (m)<input type="number" step="0.05" min="0.3" inputmode="decimal" data-plo="width" value="${plFmt(o.width)}"></label>
+     ${ed && o.type === 'door' ? '<button type="button" class="btn sm" data-pl="flip" style="margin-top:20px">Flip swing</button>' : ''}</div><p class="small muted" style="margin:6px 0 0">Drag it to slide along the wall.</p>`;
+    if (!ed) $$('#plpanel input').forEach(i => i.disabled = true);
+  } else if (sel.t === 'mark') {
+    const m = f.marks.find(x => x.id === sel.id), it = m && HZ_T.flatMap(t => hzItems(d, t.k).map(x => [x, t])).find(([x]) => x.id === m.ref);
+    if (!it) { PL.sel = null; return plPanel(); }
+    el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">Sample ${esc(it[0].sid)}</h3>${ed ? '<button type="button" class="btn sm warn" data-pl="delmark">Remove marker</button>' : ''}</div><p class="small" style="margin:6px 0 0">${esc(it[1].t)} – ${esc(it[0].desc || it[0].loc || '')}</p><p class="small muted" style="margin:4px 0 0">Drag the marker to move it.</p>`;
+  }
+}
+function plRoomDialog(title, d, f, defW, defH) { // pick a survey room (or name a new one) + size
+  const used = new Set(f.rooms.map(r => r.roomId)), free = (d.rooms || []).filter(r => !used.has(r.id));
+  return new Promise(res => {
+    const m = modal(`<div class="mhead"><h2>${esc(title)}</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div><form id="plrf">
+     <label class="f">Room<select id="plrs">${free.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('')}<option value="">New room…</option></select></label>
+     <label class="f" id="plrnw" ${free.length ? 'hidden' : ''}>Room #/Description<input type="text" id="plrn" placeholder="e.g. 102 – Office"></label>
+     <div class="row" style="gap:10px"><label class="f" style="flex:1">Width (m)<input type="number" step="0.05" min="0.5" inputmode="decimal" id="plrw" value="${plFmt(defW)}" required></label><label class="f" style="flex:1">Length (m)<input type="number" step="0.05" min="0.5" inputmode="decimal" id="plrh" value="${plFmt(defH)}" required></label></div>
+     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-x>Cancel</button><button class="btn pri">Add room</button></div></form>`, 'narrow');
+    const sel = $('#plrs', m), nw = $('#plrnw', m); if (!free.length) sel.value = '';
+    sel.onchange = () => { nw.hidden = !!sel.value; if (!sel.value) $('#plrn', m).focus(); };
+    $('#plrf', m).onsubmit = e => { e.preventDefault(); const w = parseFloat($('#plrw', m).value), h = parseFloat($('#plrh', m).value), name = $('#plrn', m).value.trim();
+      if (!sel.value && !name) { $('#plrn', m).focus(); return; } if (!(w > 0) || !(h > 0)) return; closeModal(); res({roomId: sel.value, name, w: plR(w), h: plR(h)}); };
+    m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } });
+  });
+}
+function plLinkRoom(d, a) { // existing survey room, or create it
+  if (a.roomId) return a.roomId; const r = {id: uid(), name: a.name}; d.rooms.push(r); LS.set('hzroom:' + P.id, r.id); return r.id;
+}
+async function plAction(act, btn) {
+  const d = P.data, pl = plData(d), f = plFloor(d);
+  switch (act) {
+    case 'zoom+': case 'zoom-': { const svg = $('#plsvg'); plZoomAt(svg.clientWidth / 2, svg.clientHeight / 2, PL.s * (act === 'zoom+' ? 1.3 : 1 / 1.3)); plDraw(); return; }
+    case 'fit': plFit(); plDraw(); return;
+    case 'menuclose': plMenu(null); return;
+    case 'undo': { const prev = PL.undo.pop(); if (prev) { d.plan = JSON.parse(prev); PL.sel = null; touch(); render(); } return; }
+    case 'floor+': { const name = await promptText('New floor', 'Floor name', ['Basement', 'Ground floor', 'Second floor', 'Third floor', 'Roof'][Math.min(pl.floors.length, 4)]); if (!name) return; plPush(); const fl = {id: uid(), name, rooms: [], open: [], marks: []}; pl.floors.push(fl); PL.floor = fl.id; PL.sel = null; touch(); render(); return; }
+    case 'floorren': { const name = await promptText('Rename floor', 'Floor name', f.name); if (name) { f.name = name; touch(); render(); } return; }
+    case 'room+': {
+      const a = await plRoomDialog('Add room', d, f, 4, 3); if (!a) return; plPush();
+      const x = f.rooms.length ? Math.max(...f.rooms.map(r => r.x + r.w)) + 1 : 0, y = f.rooms.length ? Math.min(...f.rooms.map(r => r.y)) : 0;
+      const r = {id: uid(), roomId: plLinkRoom(d, a), x, y, w: a.w, h: a.h}; f.rooms.push(r); PL.sel = {t: 'room', id: r.id}; touch(); plFit(); render(); return;
+    }
+    case 'roomside': {
+      const m = PL.menu; plMenu(null); const r = f.rooms.find(x => x.id === m.rid), len = plWallLen(r, m.side);
+      const horiz = m.side === 'n' || m.side === 's', a = await plRoomDialog('Room on this side', d, f, horiz ? len : 3, horiz ? 3 : len); if (!a) return; plPush();
+      const nr = {id: uid(), roomId: plLinkRoom(d, a), w: a.w, h: a.h, x: 0, y: 0};
+      if (m.side === 'e') { nr.x = r.x + r.w; nr.y = r.y; } else if (m.side === 'w') { nr.x = r.x - nr.w; nr.y = r.y; } else if (m.side === 's') { nr.x = r.x; nr.y = r.y + r.h; } else { nr.x = r.x; nr.y = r.y - nr.h; }
+      f.rooms.push(nr); PL.sel = {t: 'room', id: nr.id}; touch();
+      { const svg = $('#plsvg'), W = svg.clientWidth, H = svg.clientHeight, X = x => PL.ox + x * PL.s, Y = y => PL.oy + y * PL.s; // keep the new room in view
+        if (X(nr.x) < 0 || Y(nr.y) < 0 || X(nr.x + nr.w) > W || Y(nr.y + nr.h) > H) plFit(); }
+      render(); return;
+    }
+    case 'door': case 'window': {
+      const m = PL.menu; plMenu(null); const r = f.rooms.find(x => x.id === m.rid), len = plWallLen(r, m.side), wd = Math.min(act === 'door' ? PL_DOOR : PL_WIN, len);
+      plPush(); const o = {id: uid(), rid: r.id, side: m.side, type: act, width: wd, pos: Math.min(Math.max(wd / 2, plR(m.pos)), len - wd / 2), flip: 0}; f.open.push(o); PL.sel = {t: 'open', id: o.id}; plChanged(); return;
+    }
+    case 'delroom': { const r = f.rooms.find(x => x.id === PL.sel.id); if (!r || !await ask('Delete room from the plan?', 'Removes the room, its doors and windows from the floor plan. The survey room and its samples stay.', 'Delete', 1)) return;
+      plPush(); f.rooms = f.rooms.filter(x => x !== r); f.open = f.open.filter(o => o.rid !== r.id); PL.sel = null; plChanged(); return; }
+    case 'delopen': plPush(); f.open = f.open.filter(o => o.id !== PL.sel.id); PL.sel = null; plChanged(); return;
+    case 'delmark': plPush(); f.marks = f.marks.filter(m => m.id !== PL.sel.id); PL.sel = null; plChanged(); return;
+    case 'flip': { const o = f.open.find(x => x.id === PL.sel.id); plPush(); o.flip = ((o.flip || 0) + 1) % 4; plChanged(false); return; }
+    case 'rotate': { const r = f.rooms.find(x => x.id === PL.sel.id); plPush(); [r.w, r.h] = [r.h, r.w]; f.open.filter(o => o.rid === r.id).forEach(o => { o.side = {n: 'w', w: 'n', s: 'e', e: 's'}[o.side]; o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(r, o.side) - o.width / 2); }); plChanged(); return; }
+    case 'place': PL.place = btn.dataset.id; plDraw(); toast('Tap the plan where the sample was taken.', 2500); return;
+    case 'unplace': plPush(); f.marks = f.marks.filter(m => m.ref !== btn.dataset.id); plChanged(); return;
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-pl]'); if (!b || !P || !isHaz(P) || S.view !== 'plan') return;
+  e.preventDefault(); e.stopPropagation(); plAction(b.dataset.pl, b);
+}, true);
+document.addEventListener('change', e => {
+  const t = e.target; if (!P || !isHaz(P) || S.view !== 'plan') return; const d = P.data;
+  if (t.id === 'plfloor') { PL.floor = t.value; PL.sel = null; render(); return; }
+  if (!canEdit(P)) return; const f = plFloor(d);
+  if (t.dataset.plr) { const r = f.rooms.find(x => PL.sel && x.id === PL.sel.id); if (!r) return; plPush();
+    if (t.dataset.plr === 'roomId') r.roomId = t.value; else { const v = parseFloat(t.value); if (v >= 0.5) {
+      // a corrected measurement pushes the rooms beyond that wall along with it
+      const k = t.dataset.plr, edge = k === 'w' ? r.x + r.w : r.y + r.h, delta = plR(v) - r[k];
+      f.rooms.forEach(o => { if (o !== r && (k === 'w' ? o.x : o.y) >= edge - 0.01) { if (k === 'w') o.x = plR(o.x + delta); else o.y = plR(o.y + delta); } });
+      f.marks.forEach(m => { if ((k === 'w' ? m.x : m.y) >= edge - 0.01) { if (k === 'w') m.x = plR(m.x + delta); else m.y = plR(m.y + delta); } });
+      r[k] = plR(v); f.open.filter(o => o.rid === r.id).forEach(o => { o.width = Math.min(o.width, plWallLen(r, o.side)); o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(r, o.side) - o.width / 2); }); } }
+    plChanged(); }
+  if (t.dataset.plo) { const o = f.open.find(x => PL.sel && x.id === PL.sel.id), r = o && f.rooms.find(x => x.id === o.rid); const v = parseFloat(t.value); if (!o || !(v >= 0.3)) return; plPush();
+    o.width = plR(Math.min(v, plWallLen(r, o.side))); o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(r, o.side) - o.width / 2); plChanged(false); }
+});
+window.addEventListener('resize', () => { if ($('#plsvg')) plDraw(); });
+window.__hn = () => ({P, PL, LS}); // used by the automated tests
+
+/* PDF: each floor to scale on its own page */
+function plPdf(doc, d, head, M, W, H, navy) {
+  const pl = d.plan; if (!pl) return; const items = HZ_T.flatMap(t => hzItems(d, t.k));
+  for (const f of pl.floors) {
+    if (!f.rooms.length) continue;
+    doc.addPage(); head(); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...navy); doc.text(`FLOOR PLAN – ${String(f.name).toUpperCase()}`, M, 72);
+    const x0 = Math.min(...f.rooms.map(r => r.x)), y0 = Math.min(...f.rooms.map(r => r.y)), x1 = Math.max(...f.rooms.map(r => r.x + r.w)), y1 = Math.max(...f.rooms.map(r => r.y + r.h));
+    const top = 96, bottom = H - 90, s = Math.min((W - 2 * M - 20) / (x1 - x0 || 1), (bottom - top) / (y1 - y0 || 1), 72 * 39.37 / 50);
+    const ox = M + ((W - 2 * M) - (x1 - x0) * s) / 2 - x0 * s, oy = top + ((bottom - top) - (y1 - y0) * s) / 2 - y0 * s, X = x => ox + x * s, Y = y => oy + y * s;
+    doc.setDrawColor(...navy); doc.setLineWidth(1.4);
+    f.rooms.forEach(r => doc.rect(X(r.x), Y(r.y), r.w * s, r.h * s));
+    f.open.forEach(o => { const r = f.rooms.find(x => x.id === o.rid); if (!r) return; const g = plOpenGeom(r, o);
+      const ax = g.cx - g.ux * o.width / 2, ay = g.cy - g.uy * o.width / 2, bx = g.cx + g.ux * o.width / 2, by = g.cy + g.uy * o.width / 2;
+      doc.setDrawColor(255, 255, 255); doc.setLineWidth(2.6); doc.line(X(ax), Y(ay), X(bx), Y(by)); doc.setDrawColor(...navy);
+      if (o.type === 'window') { const k = 0.06; doc.setLineWidth(0.6); doc.line(X(ax + g.nx * k), Y(ay + g.ny * k), X(bx + g.nx * k), Y(by + g.ny * k)); doc.line(X(ax - g.nx * k), Y(ay - g.ny * k), X(bx - g.nx * k), Y(by - g.ny * k)); doc.setLineWidth(1.4); doc.line(X(ax - g.nx * k), Y(ay - g.ny * k), X(ax + g.nx * k), Y(ay + g.ny * k)); doc.line(X(bx - g.nx * k), Y(by - g.ny * k), X(bx + g.nx * k), Y(by + g.ny * k)); }
+      else { const he = (o.flip || 0) & 1, inw = ((o.flip || 0) & 2) ? -1 : 1, hx = he ? bx : ax, hy = he ? by : ay, ex = he ? ax : bx, ey = he ? ay : by, lx = hx + g.nx * o.width * inw, ly = hy + g.ny * o.width * inw;
+        doc.setLineWidth(0.9); doc.line(X(hx), Y(hy), X(lx), Y(ly)); doc.setLineWidth(0.4);
+        const a0 = Math.atan2(ly - hy, lx - hx), a1 = Math.atan2(ey - hy, ex - hx); let da = a1 - a0; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+        let px = lx, py = ly; for (let k = 1; k <= 12; k++) { const a = a0 + da * k / 12, qx = hx + Math.cos(a) * o.width, qy = hy + Math.sin(a) * o.width; doc.line(X(px), Y(py), X(qx), Y(qy)); px = qx; py = qy; }
+        doc.setLineWidth(1.4); } });
+    f.rooms.forEach(r => { const name = ((d.rooms || []).find(x => x.id === r.roomId) || {}).name || r.name || ''; const cx = X(r.x + r.w / 2), cy = Y(r.y + r.h / 2), mw = r.w * s - 6;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.max(6, Math.min(9, s * 0.25))); doc.setTextColor(...navy); doc.text(doc.splitTextToSize(name, mw).slice(0, 2), cx, cy - 2, {align: 'center'});
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(Math.max(5.5, Math.min(7.5, s * 0.2))); doc.setTextColor(90, 105, 112); doc.text(`${plFmt(r.w)} × ${plFmt(r.h)} m`, cx, cy + 9, {align: 'center'}); });
+    f.marks.forEach(m => { const it = items.find(x => x.id === m.ref); if (!it) return; doc.setFillColor(0, 173, 239); doc.setDrawColor(...navy); doc.setLineWidth(0.5); doc.circle(X(m.x), Y(m.y), 3.4, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor(...navy); doc.text(String(it.sid || ''), X(m.x) + 5, Y(m.y) + 2.4); });
+    // scale bar + note
+    const nice = [0.5, 1, 2, 5, 10, 20, 50].find(v => v * s >= 70) || 50, by2 = H - 62; doc.setDrawColor(...navy); doc.setLineWidth(1); doc.line(M, by2, M + nice * s, by2); doc.line(M, by2 - 4, M, by2 + 4); doc.line(M + nice * s, by2 - 4, M + nice * s, by2 + 4);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...navy); doc.text(`${nice} m`, M + nice * s / 2, by2 - 6, {align: 'center'});
+    doc.setFontSize(7.2); doc.setTextColor(90, 105, 112); doc.text('Sketch from field measurements (metres). Blue dots: sample locations, labelled with the Sample ID.', M + nice * s + 16, by2 + 2.5);
+  }
 }
 
 /* ---------- library (PC editable table) ---------- */
