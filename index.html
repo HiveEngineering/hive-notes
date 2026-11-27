@@ -114,6 +114,25 @@ input:disabled,textarea:disabled,select:disabled{opacity:.85;background:transpar
 .ophoto .th img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:var(--field);display:block}
 .ophoto .th .n{position:absolute;left:6px;top:6px;background:var(--blue);color:var(--navy);font-weight:700;border-radius:99px;min-width:26px;text-align:center;padding:1px 6px;font-size:13px}
 @media (max-width:560px){.ophoto{flex-direction:column}.ophoto .th{width:100%}}
+.hzgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin:12px 0}
+.hzsq{position:relative;aspect-ratio:1/1;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:4px;text-align:left;padding:14px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;cursor:pointer;overflow:hidden}
+.hzsq b{font-size:17px;line-height:1.2}.hzsq:hover{border-color:var(--blue);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.hzsq .hzbar{position:absolute;left:0;top:0;right:0;height:10px;background:var(--acc)}
+.hzsq .chip{position:absolute;right:10px;top:18px}
+.hzsq.bld{background:var(--light);color:var(--ink);justify-content:space-between}.hzsq.bld svg{color:var(--blue)}
+@media (max-width:420px){.hzgrid{grid-template-columns:1fr 1fr}.hzsq{padding:10px}.hzsq b{font-size:15px}.hzsq .muted{display:none}}
+.hztabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;margin-top:6px;scrollbar-width:thin}
+.hztabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:inherit;border-radius:99px;padding:7px 12px;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+.hztabs button.on{background:var(--blue);border-color:var(--blue);color:var(--navy);font-weight:700}
+.hztabs .n{display:inline-block;min-width:18px;padding:0 5px;border-radius:99px;background:var(--light);color:var(--ink);font-size:12px;text-align:center}
+.hzroombar{display:flex;gap:6px;align-items:flex-end;flex-wrap:nowrap;position:sticky;top:64px;z-index:5;padding:8px 10px}.hzroombar select{min-height:40px}
+.hzent{border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:10px;padding:8px 10px;margin:8px 0}
+.hzfields{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px 10px}
+.hzf{margin:0;font-size:13px}.hzf.wide{grid-column:span 2}.hzf input,.hzf select{min-height:38px}
+.hzf input.sid{font-weight:700}
+.hzth{position:relative;display:inline-block}.hzth img{width:64px;height:48px;object-fit:cover;border-radius:6px;background:var(--field);display:block}
+.hzth .x{position:absolute;right:-6px;top:-6px;border:0;border-radius:99px;width:20px;height:20px;background:#c0392b;color:#fff;font-size:11px;cursor:pointer}
+.hzds{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
 .obsent{border-left:4px solid var(--blue);padding:4px 0 8px 12px;margin:12px 0}
 .tablewrap{overflow-x:auto}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:12px;margin:10px 0}
@@ -212,7 +231,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.4.3';
+const VERSION = '0.5.0';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -426,12 +445,12 @@ const Live = {
     for (const n of Object.values(S.notes)) {
       if (n._deleted) { const {error} = await this.sb.from('hn_notes').delete().eq('id', n.id); if (!error || error.code === 'PGRST116') delete S.notes[n.id]; continue; }
       if (!n._dirty || n._queued) continue;
-      if (isObs(n) && n.owner === S.me.id) await this.uploadPhotos(n);
+      if ((isObs(n) || isHaz(n)) && n.owner === S.me.id) await this.uploadPhotos(n);
       const stamp = n.updated_at; await this.write(n); if (n.updated_at === stamp) n._dirty = false; // edits made during the upload stay dirty
     }
     for (const item of S.outbox.slice()) {
       const n = S.notes[item.id]; if (!n) { S.outbox = S.outbox.filter(o => o !== item); continue; }
-      if (isObs(n)) await this.uploadPhotos(n);
+      if (isObs(n) || isHaz(n)) await this.uploadPhotos(n);
       const ext = item.ext || 'pdf', path = n.owner + '/' + n.id + '.' + ext;
       const up = await this.sb.storage.from('hn-pdfs').upload(path, item.pdf, {upsert: true, contentType: ext === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf'}); if (up.error) throw up.error;
       n.pdf_path = path;
@@ -587,19 +606,22 @@ const ICONS = {
 };
 function viewHome(app) {
   const mine = Object.values(S.notes).filter(n => n.owner === S.me.id && !n._deleted && n.section === 'safety');
+  const hzDrafts = Object.values(S.notes).filter(n => n.owner === S.me.id && !n._deleted && isHaz(n) && n.status === 'draft').length;
+  const hzReview = Object.values(S.notes).filter(n => n.pm === S.me.id && isHaz(n) && n.status === 'submitted' && !n._deleted).length;
   const obsDrafts = Object.values(S.notes).filter(n => n.owner === S.me.id && !n._deleted && isObs(n) && n.status === 'draft').length;
   const obsReview = Object.values(S.notes).filter(n => n.pm === S.me.id && isObs(n) && n.status === 'submitted' && !n._deleted).length;
   const drafts = mine.filter(n => n.status === 'draft').length;
   const toReview = Object.values(S.notes).filter(n => n.pm === S.me.id && n.status === 'submitted' && !n._deleted && n.section === 'safety').length;
   const sec = (key, title, desc, live, chips = '') => live
-    ? `<button class="tile sec" data-go="${key === 'observation' ? 'obslist' : 'list'}" data-sec="${key}"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="row">${chips}</span></button>`
+    ? `<button class="tile sec" data-go="${key === 'observation' ? 'obslist' : key === 'hazmat' ? 'hazlist' : 'list'}" data-sec="${key}"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="row">${chips}</span></button>`
     : `<div class="tile sec soon" aria-disabled="true"><span class="ic">${ICONS[key]}</span><b>${title}</b><span class="muted">${desc}</span><span class="chip">Coming later</span></div>`;
   app.innerHTML = `<h1>Hi ${esc((S.me.full_name || '').split(' ')[0])}</h1><p class="lead">Choose a section.</p>
   <div class="secs">
     ${sec('safety', 'Safety', 'Health &amp; Safety Plan and Hazard Assessment, signed on the screen and emailed to the project manager.', true,
       (drafts ? `<span class="chip draft">${drafts} draft${drafts > 1 ? 's' : ''}</span>` : '') + (toReview ? `<span class="chip submitted">${toReview} to review</span>` : ''))}
     ${sec('esa', 'Phase I ESA', 'Site visit notes for Phase I Environmental Site Assessments.', false)}
-    ${sec('hazmat', 'HazMat', 'Hazardous materials survey notes.', false)}
+    ${sec('hazmat', 'HazMat', 'Room-by-room regulated materials (designated substances) surveys: asbestos, paint, lead, mercury, PCBs, ODS and more, with samples and photos.', true,
+      (hzDrafts ? `<span class="chip draft">${hzDrafts} draft${hzDrafts > 1 ? 's' : ''}</span>` : '') + (hzReview ? `<span class="chip submitted">${hzReview} to review</span>` : ''))}
     ${sec('observation', 'Observation', 'Site Observation Reports with photographs, exported to Word and emailed to the project manager.', true,
       (obsDrafts ? `<span class="chip draft">${obsDrafts} draft${obsDrafts > 1 ? 's' : ''}</span>` : '') + (obsReview ? `<span class="chip submitted">${obsReview} to review</span>` : ''))}
   </div>
@@ -643,12 +665,13 @@ function newPlan(from) {
 /* ---------- plan editor ---------- */
 let P = null; // current note
 let saveT = null;
-function touch() { if (!P) return; P.updated_at = new Date().toISOString(); P.title = isObs(P) ? P.data.location : P.data.title; P.project_no = P.data.projectNo; P._dirty = true; clearTimeout(saveT); saveT = setTimeout(async () => { await saveNotes(); topbar(); queueSync(2500); }, 500); }
+function touch() { if (!P) return; P.updated_at = new Date().toISOString(); P.title = isObs(P) ? P.data.location : isHaz(P) ? P.data.buildingName : P.data.title; P.project_no = P.data.projectNo; P._dirty = true; clearTimeout(saveT); saveT = setTimeout(async () => { await saveNotes(); topbar(); queueSync(2500); }, 500); }
 const canEdit = n => n.owner === S.me.id && n.status === 'draft';
 function viewPlan(app) {
   P = S.notes[S.param];
   if (!P) { app.innerHTML = `<div class="empty">${S.syncing || (S.online && S.mode === 'live' && !S.lastSync) ? 'Loading the plan…' : 'This plan isn’t on this device' + (S.online ? ' or you don’t have access to it' : ' and you are offline') + '.'}</div><p><button class="btn" data-go="list">Back to list</button></p>`; return; }
   if (isObs(P)) return viewObs(app);
+  if (isHaz(P)) return viewHaz(app);
   const step = Number(LS.get('step:' + P.id) || 1);
   const ed = canEdit(P);
   const [c, t] = noteLabel(P);
@@ -1507,6 +1530,334 @@ async function obsClick(act, a, i) {
   return false;
 }
 
+/* ================= HAZMAT – Regulated Materials (Designated Substances) Survey ================= */
+const isHaz = n => n && n.section === 'hazmat';
+const HZ_ACM = [['sid', 'Sample ID', 1.1, 'sid'], ['desc', 'Description', 2.6], ['qty', 'Quantity', 0.8], ['unit', 'Unit', 0.6, 'sel', ['', 'm²', 'm', 'ft²', 'lin. ft', 'each']], ['cond', 'Condition (G,M,P)', 0.9, 'sel', ['', 'G', 'M', 'P']], ['fri', 'Friability (Y or N)', 0.9, 'sel', ['', 'Y', 'N']], ['acc', 'Accessibility (H,M,L)', 1, 'sel', ['', 'H', 'M', 'L']]];
+// table definitions follow the Room-by-Room DSS Survey data sheet; code = Sample ID prefix (code + 2-digit year + '-' + number, e.g. A26-01)
+const HZ_T = [
+  {k: 'acm_floor', sub: 'asbestos', t: 'ACM - Flooring', code: 'A', cols: HZ_ACM, notes: [['Suspect flooring', 'Vinyl Floor Tile, Vinyl Sheet Flooring, Other Suspect Flooring/Mastic'], ['Non suspect flooring', 'Carpet, Marble, Concrete, Ceramic, Terrazzo, Laminate, Wood']]},
+  {k: 'acm_wall', sub: 'asbestos', t: 'ACM - Walls', code: 'A', cols: HZ_ACM, notes: [['Suspect wall', 'Drywall Joint Compound, Plaster, Texture Coat, Transite, Spray Applied Insulation, Gyproc, Wall Paper'], ['Non suspect wall', 'Concrete, Marble, Metal, Ceramic, Terracotta, Wood, Brick, Plastic']]},
+  {k: 'acm_ceil', sub: 'asbestos', t: 'ACM - Ceilings', code: 'A', cols: HZ_ACM, notes: [['Suspect ceiling', 'Drywall Joint Compound, Texture Coat, Plaster Skim Coat, Plaster Scratch Coat, Spray Applied Insulation, Glue on Ceiling Tiles, Lay-in Ceiling Tiles, Transite'], ['Non suspect ceiling', 'Concrete, Marble, Metal, Wood, Ceramic, Fibreglass Ceiling Tiles, Glue on Fibreglass']]},
+  {k: 'acm_pipe', sub: 'asbestos', t: 'ACM - Piping', code: 'A', cols: HZ_ACM, notes: [['Suspect piping', 'Parging Cement on Fittings, Parging Cement on Straight Run, Aircell, Preformed Block, Cellulose & Tar Paper, Cellulose, Tar Paper, Transite, Sweatwrap'], ['Non suspect piping', 'Fibreglass, Rubber, Uninsulated, Horsehair']]},
+  {k: 'acm_duct', sub: 'asbestos', t: 'ACM - Ducting', code: 'A', cols: HZ_ACM, notes: [['Suspect duct', 'Parging'], ['Non suspect duct', 'Fibreglass, Vinyl Flex Duct, Uninsulated']]},
+  {k: 'acm_other', sub: 'asbestos', t: 'ACM - Other/Exterior', code: 'A', cols: HZ_ACM, notes: [['Other suspect', 'Mastic, Firestop, Caulking, Gasket, Galbestos, Roofing, Siding, Vermiculite, Fire Door, Tar Paper, Light Fixture Heat Shield']]},
+  {k: 'acm_dust', sub: 'asbestos', t: 'ACM - Settled Dust/Wipe Sample', code: 'A', cols: [['sid', 'Sample ID', 1.1, 'sid'], ['area', 'Sample Area (cm²)', 1], ['qty', 'Quantity', 0.8], ['unit', 'Units', 0.7], ['desc', 'Description/Comments', 3]]},
+  {k: 'lead_paint', sub: 'paint', t: 'Lead Paint', code: 'P', cols: [['sid', 'Sample ID', 1.1, 'sid'], ['loc', 'Location', 2.4], ['qty', 'Quantity', 1], ['colour', 'Colour', 1.2]]},
+  {k: 'lead_swab', sub: 'lead', g: 'Lead swabs', t: 'Lead Swab', code: 'LS', cols: [['sid', 'Sample ID', 1.1, 'sid'], ['loc', 'Location & Description', 3.4], ['res', 'Result', 1, 'sel', ['', 'Presence', 'Absence']]]},
+  {k: 'lead_equip', sub: 'lead', g: 'Lead equipment / items', t: 'Lead Equipment', cols: [['item', 'Item', 1.6], ['desc', 'Description', 3], ['count', 'Count', 0.7]]},
+  {k: 'merc', sub: 'mercury', t: 'Mercury', cols: [['type', 'Type', 1.4, 'sel', ['Thermostats', 'Fluorescent Bulbs', 'Bulk Mercury']], ['desc', 'Description', 3], ['count', 'Count', 0.7]]},
+  {k: 'pcb_ballast', sub: 'pcb', g: 'PCB light ballasts', t: 'PCB Light Ballasts', cols: [['fixture', 'Fixture Type', 1.6], ['bulbs', 'Bulbs', 0.8], ['serial', 'Serial No', 1.3], ['label', 'Label', 1.1], ['loc', 'Location', 1.4]]},
+  {k: 'pcb_bulk', sub: 'pcb', g: 'PCB bulk samples (when collected)', t: 'PCB Bulk Samples', code: 'PCB', cols: [['sid', 'Sample ID', 1.1, 'sid'], ['loc', 'Location', 2], ['desc', 'Description', 3]]},
+  {k: 'ods', sub: 'ods', t: 'Ozone Depleting Substances', cols: [['equip', 'Equipment Type', 1.8], ['serial', 'Serial No', 1.3], ['label', 'Label', 1.2], ['loc', 'Location', 1.6]]},
+  {k: 'soot', sub: 'other', g: 'Ash & soot (samples when collected)', t: 'Soot & Ash Samples for Metals and PAH', code: 'SA', cols: [['sid', 'Sample ID', 1.1, 'sid'], ['loc', 'Location', 2], ['desc', 'Description/Quantity', 3]]},
+  {k: 'mould', sub: 'other', g: 'Biological (mould)', t: 'Mould', code: 'M', cols: [['sid', 'Sample ID', 1.1, 'sid'], ['loc', 'Location', 1.8], ['qty', 'Quantity (m²)', 0.9], ['desc', 'Description', 2.6]]},
+  {k: 'chem', sub: 'other', g: 'Chemicals', t: 'Chemicals', cols: [['product', 'Chemical / Product', 1.8], ['container', 'Container & Size', 1.4], ['qty', 'Quantity', 0.8], ['loc', 'Location', 1.4], ['notes', 'Condition / Notes', 1.8]]}
+];
+const HZ_TK = Object.fromEntries(HZ_T.map(t => [t.k, t]));
+const HZ_DS = [['acrylonitrile', 'Acrylonitrile'], ['arsenic', 'Arsenic'], ['benzene', 'Benzene'], ['ethylene_oxide', 'Ethylene Oxide'], ['silica', 'Silica'], ['isocyanates', 'Isocyanates'], ['coke', 'Coke Ovens Emissions'], ['mercury', 'Mercury'], ['vinyl_chloride', 'Vinyl Chloride']];
+const HZ_SUBS = [
+  ['asbestos', 'Asbestos', 'Samples always collected', '#00ADEF'], ['paint', 'Paint', 'Lead paint – samples always collected', '#C2D64A'],
+  ['lead', 'Lead – Bulk', 'Lead swabs and lead equipment', '#58595B'], ['mercury', 'Mercury – Bulk', 'Thermostats · Fluorescent bulbs · Bulk mercury', '#9aa4a8'],
+  ['pcb', 'PCBs', 'Light ballasts · bulk samples when collected', '#FFDF00'], ['ods', 'Ozone Depleting Substances', 'Equipment enumeration', '#7fd3f3'],
+  ['other', 'Other', 'Ash & soot · Biological · Chemicals · Other designated substances', '#0F2A36']];
+const HZ_ASSESS = [['destructive', 'Destructive'], ['semi', 'Semi-destructive'], ['non', 'Non-Destructive'], ['visual', 'Visual Only']];
+const HZ_STRUCT = ['Concrete', 'Metal', 'Brick', 'Wood'], HZ_HEAT = ['Individual Propane', 'Electrical Heaters', 'Forced Air', 'Radiant', 'Heat Pump'], HZ_FUEL = ['Coal', 'Furnace Oil', 'Propane', 'Wood', 'Natural Gas'];
+const hzItems = (d, k) => (d.items && d.items[k]) || [];
+const hzRoom = d => { const r = LS.get('hzroom:' + P.id); return (d.rooms || []).find(x => x.id === r) ? r : ((d.rooms || [])[0] || {}).id; };
+const hzRoomName = (d, id) => ((d.rooms || []).find(r => r.id === id) || {}).name || 'Unassigned';
+function hzNextSid(d, code) {
+  const yy = String(d.date || today()).slice(2, 4), pre = code + yy + '-'; let max = 0;
+  HZ_T.forEach(t => hzItems(d, t.k).forEach(it => { const s = String(it.sid || ''); if (s.startsWith(pre)) { const n = parseInt(s.slice(pre.length), 10); if (n > max) max = n; } }));
+  return pre + String(max + 1).padStart(2, '0');
+}
+const hzSubCount = (d, sub, room) => HZ_T.filter(t => t.sub === sub).reduce((a, t) => a + hzItems(d, t.k).filter(it => !room || it.room === room).length, 0) + (sub === 'other' ? Object.entries(d.roomInfo || {}).filter(([r]) => !room || r === room).reduce((a, [, v]) => a + Object.values(v.ds || {}).filter(Boolean).length, 0) : 0);
+const hzSamples = d => HZ_T.filter(t => t.code).reduce((a, t) => a + hzItems(d, t.k).filter(it => it.sid).length, 0);
+
+function viewHazList(app) {
+  const tab = S.param || 'mine';
+  const all = Object.values(S.notes).filter(n => !n._deleted && isHaz(n));
+  const sets = {mine: all.filter(n => n.owner === S.me.id), review: all.filter(n => n.pm === S.me.id && n.owner !== S.me.id), all};
+  const list = (sets[tab] || sets.mine).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  app.innerHTML = `<button class="btn sm" data-go="home">← Sections</button><div class="row" style="justify-content:space-between"><h1>HazMat surveys</h1><button class="btn pri" data-act="newhaz">+ New survey</button></div>
+  <div class="tabs"><button class="tab ${tab === 'mine' ? 'on' : ''}" data-go="hazlist" data-p="mine">My surveys</button>
+  ${S.me.is_pm || isAdmin() ? `<button class="tab ${tab === 'review' ? 'on' : ''}" data-go="hazlist" data-p="review">Sent to me (${sets.review.filter(n => n.status === 'submitted').length})</button>` : ''}
+  ${isAdmin() ? `<button class="tab ${tab === 'all' ? 'on' : ''}" data-go="hazlist" data-p="all">All surveys</button>` : ''}</div>
+  <div class="list" style="margin-top:10px">${list.length ? list.map(n => { const [c, t] = noteLabel(n), d = n.data || {}, o = staffById(n.owner), p = staffById(n.pm);
+    return `<button class="item" data-go="plan" data-p="${esc(n.id)}"><div class="grow"><div class="t">${esc(n.title || 'New survey')}${n.project_no ? ' · ' + esc(n.project_no) : ''}</div>
+    <div class="muted small">${d.date ? esc(fmtD(d.date)) + ' · ' : ''}${(d.rooms || []).length} room${(d.rooms || []).length === 1 ? '' : 's'} · ${hzSamples(d)} samples${tab !== 'mine' && o ? ' · by ' + esc(o.full_name) : ''}${p ? ' · PM ' + esc(p.full_name) : ''} · ${fmtDT(n.updated_at)}</div>${n.email_error && n._queued ? `<div class="err small">${esc(n.email_error)}</div>` : ''}</div><span class="chip ${c}">${t}</span></button>`; }).join('')
+    : `<div class="empty">${tab === 'mine' ? 'No surveys yet. Start one with “New survey”.' : 'Nothing here.'}</div>`}</div>`;
+}
+function newHaz(from) {
+  const id = uid(), now = new Date().toISOString(), f = from ? clone(from.data) : {};
+  const data = {buildingName: f.buildingName || '', projectNo: f.projectNo || '', date: today(), surveyors: staffLabel(S.me), siteContact: f.siteContact || '', assess: [],
+    rooms: from ? (f.rooms || []).map(r => ({id: uid(), name: r.name})) : [], roomInfo: {}, items: {}, building: from ? clone(f.building || {}) : {tanks: []}, photos: []};
+  const n = {id, section: 'hazmat', kind: 'dss_survey', owner: S.me.id, pm: from ? from.pm : null, status: 'draft', title: data.buildingName, project_no: data.projectNo, data, created_at: now, updated_at: now, _dirty: true, _local: true};
+  S.notes[id] = n; saveNotes(); LS.set('hz:' + id, 'info'); go('plan', id);
+}
+function hzProblems(n) {
+  const d = n.data, out = [];
+  if (!(d.buildingName || '').trim()) out.push(['info', 'Building name']);
+  if (!(d.projectNo || '').trim()) out.push(['info', 'Project #']);
+  if (!d.date) out.push(['info', 'Date']);
+  if (!n.pm) out.push(['info', 'Project manager']);
+  if (!(d.rooms || []).length) out.push(['asbestos', 'At least one room']);
+  const noSid = HZ_T.filter(t => t.code && ['asbestos', 'paint'].includes(t.sub)).reduce((a, t) => a + hzItems(d, t.k).filter(it => !(it.sid || '').trim()).length, 0);
+  if (noSid) out.push(['asbestos', `${noSid} asbestos/paint entr${noSid > 1 ? 'ies have' : 'y has'} no Sample ID`]);
+  return out;
+}
+function viewHaz(app) {
+  const n = P, d = n.data, ed = canEdit(n), [c, t] = noteLabel(n);
+  d.items = d.items || {}; d.roomInfo = d.roomInfo || {}; d.building = d.building || {tanks: []}; d.photos = d.photos || []; d.rooms = d.rooms || [];
+  const page = LS.get('hz:' + n.id) || 'hub', sub = HZ_SUBS.find(s => s[0] === page);
+  app.innerHTML = `<div class="row" style="justify-content:space-between;align-items:flex-start"><div>
+    <button class="btn sm" data-go="${page === 'hub' ? 'hazlist' : 'plan'}" ${page === 'hub' ? '' : `data-p="${esc(n.id)}" data-hzgo="hub"`}>← ${page === 'hub' ? 'HazMat surveys' : 'Survey'}</button>
+    <h1>${esc(d.buildingName || 'New survey')}</h1><div class="row small muted"><span class="chip ${c}">${t}</span>${d.projectNo ? esc(d.projectNo) + ' · ' : ''}${d.date ? esc(fmtD(d.date)) + ' · ' : ''}${esc((staffById(n.owner) || {}).full_name || '')}${n.submitted_at ? ' · submitted ' + fmtDT(n.submitted_at) : ''}${n.reviewed_at ? ' · reviewed ' + fmtDT(n.reviewed_at) : ''}</div></div>
+    <div class="row">${hzActions(n)}</div></div>
+  ${!ed && n.status !== 'draft' ? `<div class="band small">This survey has been submitted and is read-only.${n.owner === S.me.id && n.status === 'submitted' ? ' Use “Reopen to edit” to change it and send it again.' : ''}</div>` : ''}
+  <form id="pform" onsubmit="return false">${page === 'hub' ? hzHub(n, ed) : page === 'info' ? hzInfo(n, ed) : page === 'building' ? hzBuilding(n, ed) : page === 'send' ? hzSend(n, ed) : sub ? hzSubPage(n, ed, sub) : hzHub(n, ed)}</form>`;
+  if (!ed) $$('#pform input,#pform select,#pform textarea').forEach(i => { if (!i.matches('[data-keep]')) i.disabled = true; });
+  $$('#pform textarea').forEach(autoGrow);
+  if ($('img[data-thumb]')) fillThumbs();
+}
+function hzActions(n) {
+  const out = [];
+  if (n.pm === S.me.id && n.status === 'submitted') out.push('<button class="btn go" data-act="reviewed">Mark reviewed</button>');
+  if (n.owner === S.me.id && n.status === 'submitted' && !n._queued) out.push('<button class="btn" data-act="reopen">Reopen to edit</button>');
+  out.push('<button class="btn" data-act="hzpdf">PDF</button>');
+  out.push('<button class="btn" data-act="duphaz">Copy to new survey</button>');
+  if ((n.owner === S.me.id && n.status === 'draft') || isAdmin()) out.push('<button class="btn warn" data-act="delplan">Delete</button>');
+  return out.join('');
+}
+const HZ_ICON = {building: '<svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true"><path d="M8 42V14l16-8 16 8v28" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M4 42h40" stroke="currentColor" stroke-width="3"/><rect x="14" y="18" width="6" height="6" fill="currentColor"/><rect x="28" y="18" width="6" height="6" fill="currentColor"/><rect x="14" y="29" width="6" height="6" fill="currentColor"/><rect x="28" y="29" width="6" height="13" fill="currentColor"/></svg>'};
+function hzHub(n, ed) {
+  const d = n.data, pr = ed ? hzProblems(n) : [];
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Project</h2><button type="button" class="btn sm" data-hzgo="info">${ed ? 'Edit' : 'View'} project info</button></div>
+   <p class="small" style="margin:6px 0 0"><b>${esc(d.buildingName || '—')}</b> · ${esc(d.projectNo || 'no project #')} · ${esc(fmtD(d.date))} · Surveyor(s): ${esc(d.surveyors || '—')}${staffById(n.pm) ? ' · PM ' + esc(staffById(n.pm).full_name) : ''}</p>
+   <p class="small muted" style="margin:4px 0 0">${(d.rooms || []).length} room${(d.rooms || []).length === 1 ? '' : 's'} · ${hzSamples(d)} samples · ${(d.photos || []).length} photos</p></div>
+  <div class="hzgrid">
+   <button type="button" class="hzsq bld" data-hzgo="building">${HZ_ICON.building}<b>Building information</b><span class="muted small">Construction, structure, heating, tanks</span></button>
+   ${HZ_SUBS.map(([k, l, h, col]) => { const cnt = hzSubCount(d, k); return `<button type="button" class="hzsq" data-hzgo="${k}" style="--acc:${col}"><span class="hzbar"></span><b>${esc(l)}</b><span class="muted small">${esc(h)}</span>${cnt ? `<span class="chip submitted">${cnt}</span>` : ''}</button>`; }).join('')}
+  </div>
+  ${(d.rooms || []).length ? `<div class="card"><h2 style="margin-top:0">Rooms</h2><div class="tablewrap"><table class="ed"><thead><tr><th>Room #/Description</th>${HZ_SUBS.map(s => `<th>${esc(s[1].split(' ')[0])}</th>`).join('')}<th>Photos</th></tr></thead><tbody>
+   ${d.rooms.map(r => `<tr><td><b>${esc(r.name)}</b></td>${HZ_SUBS.map(s => `<td style="text-align:center">${hzSubCount(d, s[0], r.id) || ''}</td>`).join('')}<td style="text-align:center">${d.photos.filter(p => p.room === r.id).length || ''}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
+  <div class="row" style="justify-content:flex-end"><button type="button" class="btn pri" data-hzgo="send">${ed ? `Review &amp; send${pr.length ? ` (${pr.length} to fix)` : ''} →` : 'Summary →'}</button></div>`;
+}
+function hzInfo(n, ed) {
+  const d = n.data;
+  return `<div class="card"><h2 style="margin-top:0">Project information</h2><div class="grid2">
+   ${fld('Building name', 'buildingName', d.buildingName, {req: 1})}${fld('Project #', 'projectNo', d.projectNo, {req: 1})}
+   <label class="f">Date <span class="req">*</span><input type="date" data-f="date" value="${esc(d.date || '')}"></label>
+   <label class="f">Project manager <span class="req">*</span><select data-pm>${['<option value="">Choose…</option>', ...pms().map(s => `<option value="${esc(s.id)}" ${s.id === n.pm ? 'selected' : ''}>${esc(s.full_name)}</option>`)].join('')}</select></label></div>
+   <label class="f">Surveyor(s)<input type="text" data-f="surveyors" value="${esc(d.surveyors || '')}"></label>
+   ${ed ? `<div class="row small" style="margin:-2px 0 10px"><select data-addsurv style="max-width:260px;min-height:36px"><option value="">+ Add a Hive surveyor…</option>${S.staff.filter(s => s.active !== false).map(s => `<option value="${esc(s.id)}">${esc(s.full_name)}</option>`).join('')}</select></div>` : ''}
+   ${fld('Site contact (name and position)', 'siteContact', d.siteContact)}
+   <div class="f">Type of assessment<div class="row" style="gap:16px;margin-top:6px">${HZ_ASSESS.map(([k, l]) => `<label class="chk"><input type="checkbox" data-hzassess="${k}" ${(d.assess || []).includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}</div></div></div>
+   <div class="row" style="justify-content:flex-end"><button type="button" class="btn pri" data-hzgo="hub">Done – go to substances →</button></div>`;
+}
+function hzBuilding(n, ed) {
+  const b = n.data.building, f = (k, l, ph = '') => `<label class="f">${esc(l)}<input type="text" data-hzb="${k}" value="${esc(b[k] || '')}" placeholder="${esc(ph)}"></label>`;
+  const checks = (k, list) => `<div class="row" style="gap:14px;flex-wrap:wrap;margin-top:6px">${list.map(v => `<label class="chk"><input type="checkbox" data-hzbc="${k}" value="${esc(v)}" ${(b[k] || []).includes(v) ? 'checked' : ''}> ${esc(v)}</label>`).join('')}</div>`;
+  const tanks = b.tanks || [];
+  return `<div class="card"><h2 style="margin-top:0">Building information</h2><div class="grid2">
+   ${f('constructed', 'Date of construction')}${f('renovated', 'Date of substantial renovation')}${f('formerUses', 'Former building uses')}${f('storeys', 'Number of storeys')}
+   ${f('floorSystem', 'Floor system')}${f('roof', 'Roof')}${f('foundation', 'Foundation')}${f('interiorFinish', 'Interior finish')}${f('exteriorCladding', 'Exterior cladding')}${f('hvac', 'HVAC')}${f('mezzanine', 'Mezzanine')}</div>
+   <div class="f">Structure${checks('structure', HZ_STRUCT)}</div>
+   <div class="f">Heating${checks('heating', HZ_HEAT)}</div>
+   <div class="grid2">${f('boilerSerial', 'Boiler serial #')}${f('boilerModel', 'Boiler model #')}</div>
+   <div class="f">Fuel type${checks('fuel', HZ_FUEL)}</div></div>
+  <div class="card"><h2 style="margin-top:0">Hydrocarbon storage</h2>
+   <div class="tablewrap"><table class="ed"><thead><tr>${ed ? '<th></th>' : ''}${['Tank capacity', 'Type (AST/UST)', 'Material', 'Contents', 'Condition (G/F/P)', 'Staining', '2nd containment'].map(h => `<th style="min-width:110px">${h}</th>`).join('')}</tr></thead><tbody>
+   ${tanks.map((tk, i) => `<tr>${ed ? `<td><button type="button" class="btn sm warn" data-act="hztankdel" data-i="${i}" aria-label="Remove tank">✕</button></td>` : ''}${[['cap'], ['type', ['', 'AST', 'UST']], ['material'], ['contents'], ['cond', ['', 'G', 'F', 'P']], ['staining', ['', 'Yes', 'No']], ['contain', ['', 'Yes', 'No']]].map(([k, opts]) => `<td>${opts ? `<select data-hztank="${i}" data-k="${k}">${opts.map(o => `<option ${tk[k] === o ? 'selected' : ''}>${o}</option>`).join('')}</select>` : `<input type="text" data-hztank="${i}" data-k="${k}" value="${esc(tk[k] || '')}">`}</td>`).join('')}</tr>`).join('')}
+   ${tanks.length ? '' : '<tr><td colspan="8" class="muted small">No tanks recorded.</td></tr>'}</tbody></table></div>
+   ${ed ? '<button type="button" class="btn sm" data-act="hztankadd">+ Add tank</button>' : ''}</div>
+  <div class="row" style="justify-content:flex-end"><button type="button" class="btn pri" data-hzgo="hub">Done →</button></div>`;
+}
+function hzRoomBar(n, ed) {
+  const d = n.data, cur = hzRoom(d);
+  return `<div class="card hzroombar"><label class="f" style="margin:0;flex:1;min-width:150px"><span class="small muted">Room</span><select data-hzroom data-keep>${d.rooms.length ? d.rooms.map(r => `<option value="${esc(r.id)}" ${r.id === cur ? 'selected' : ''}>${esc(r.name)}</option>`).join('') : '<option value="">No rooms yet</option>'}</select></label>
+   ${ed ? `<button type="button" class="btn sm pri" data-act="hzroomadd">+ Room</button>${cur ? '<button type="button" class="btn sm" data-act="hzroomren">Rename</button>' : ''}` : ''}</div>`;
+}
+function hzEntry(n, ed, t, it, idx) {
+  const d = n.data, ph = d.photos.filter(p => p.ref === it.id);
+  return `<div class="hzent"><div class="hzfields">${t.cols.map(([k, l, , type, opts]) => `<label class="f hzf ${k === 'desc' || k === 'loc' || k === 'notes' ? 'wide' : ''}">${esc(l)}${type === 'sel' ? `<select data-hz="${t.k}" data-id="${esc(it.id)}" data-k="${k}">${opts.map(o => `<option ${String(it[k] || '') === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : `<input type="text" data-hz="${t.k}" data-id="${esc(it.id)}" data-k="${k}" value="${esc(it[k] || '')}" ${type === 'sid' ? 'class="sid"' : ''}>`}</label>`).join('')}</div>
+   <div class="row" style="gap:6px;margin-top:4px">${ph.map(p => `<span class="hzth"><img data-thumb="${esc(p.id)}" alt="Photo">${ed ? `<button type="button" class="x" data-act="hzphdel" data-id="${esc(p.id)}" aria-label="Remove photo">✕</button>` : ''}</span>`).join('')}
+   ${ed ? `<label class="btn sm">📷 Photo<input type="file" accept="image/*" capture="environment" data-hzphoto="${esc(it.id)}" hidden></label><label class="btn sm">🖼 Add<input type="file" accept="image/*" multiple data-hzphoto="${esc(it.id)}" hidden></label><span class="grow"></span><button type="button" class="btn sm warn" data-act="hzdel" data-t="${t.k}" data-id="${esc(it.id)}">Remove</button>` : ''}</div></div>`;
+}
+function hzTableCard(n, ed, t, room) {
+  const items = hzItems(n.data, t.k).filter(it => it.room === room);
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h3 style="margin:0">${esc(t.g || t.t)}</h3>${t.code ? `<span class="muted small">Sample IDs ${esc(t.code)}${esc(String(n.data.date || today()).slice(2, 4))}-01, -02…</span>` : ''}</div>
+   ${t.notes ? `<p class="small muted" style="margin:4px 0 8px">${t.notes.map(([a, b]) => `<b>${esc(a)}:</b> ${esc(b)}`).join('<br>')}</p>` : ''}
+   ${items.map((it, i) => hzEntry(n, ed, t, it, i)).join('') || '<p class="muted small" style="margin:6px 0">None recorded in this room.</p>'}
+   ${ed && room ? `<button type="button" class="btn sm pri" data-act="hzadd" data-t="${t.k}">+ ${t.code ? 'Add sample' : 'Add'}${t.k === 'merc' ? ' item' : ''}</button>` : ''}</div>`;
+}
+function hzSubPage(n, ed, [k, l, h]) {
+  const d = n.data, room = hzRoom(d), ri = room ? (d.roomInfo[room] = d.roomInfo[room] || {}) : {};
+  let body = '';
+  if (!room) body = `<div class="card"><p>Add the first room to start recording. Every entry is saved against the room picked above, and the PDF has one data sheet per room.</p></div>`;
+  else {
+    if (k === 'pcb') body += `<div class="card"><label class="f" style="max-width:260px;margin:0">Total number of light fixtures in this room<input type="text" inputmode="numeric" data-hzri="fixtures" value="${esc(ri.fixtures || '')}"></label></div>`;
+    body += HZ_T.filter(t => t.sub === k).map(t => hzTableCard(n, ed, t, room)).join('');
+    if (k === 'other') body += `<div class="card"><h3 style="margin-top:0">Other designated substances (visual check)</h3><div class="hzds">${HZ_DS.map(([dk, dl]) => `<label class="chk"><input type="checkbox" data-hzds="${dk}" ${(ri.ds || {})[dk] ? 'checked' : ''}> ${esc(dl)}</label>`).join('')}</div>
+      <label class="f" style="margin-top:8px">Notes<input type="text" data-hzri="dsNote" value="${esc(ri.dsNote || '')}" placeholder="Where seen, quantities…"></label></div>`;
+  }
+  return `<div class="hztabs" role="tablist">${HZ_SUBS.map(([sk, sl]) => { const c = hzSubCount(d, sk, room); return `<button type="button" class="${sk === k ? 'on' : ''}" data-hzgo="${sk}">${esc(sl.replace(' – Bulk', ''))}${c ? ` <span class="n">${c}</span>` : ''}</button>`; }).join('')}</div>
+   <h2 style="margin:6px 0 2px">${esc(l)}</h2><p class="muted small" style="margin:0 0 8px">${esc(h)}</p>${hzRoomBar(n, ed)}${body}
+   <div class="row" style="justify-content:space-between"><button type="button" class="btn" data-hzgo="hub">← All substances</button>${(() => { const i = HZ_SUBS.findIndex(s => s[0] === k), nx = HZ_SUBS[i + 1]; return nx ? `<button type="button" class="btn pri" data-hzgo="${nx[0]}">Next: ${esc(nx[1])} →</button>` : `<button type="button" class="btn pri" data-hzgo="send">Review &amp; send →</button>`; })()}</div>`;
+}
+function hzSend(n, ed) {
+  const d = n.data, pr = hzProblems(n), pm = staffById(n.pm), list = mailList('hazmat');
+  return `<div class="grid2"><div class="card"><h2 style="margin-top:0">${ed ? 'Before you send' : 'Summary'}</h2>
+    ${ed ? (pr.length ? `<ul class="check">${pr.map(([g, m]) => `<li class="no">✕ ${esc(m)} <button type="button" class="btn sm" data-hzgo="${g}">Fix</button></li>`).join('')}</ul>` : '<p style="color:#3c7d16;font-weight:700">✓ Ready to send.</p>') : ''}
+    <p class="small">${d.rooms.length} rooms · ${hzSamples(d)} samples · ${d.photos.length} photos</p>
+    <button type="button" class="btn" data-act="hzpdf" data-keep>${ed ? 'Preview PDF' : 'Download PDF'}</button></div>
+   <div class="card"><h2 style="margin-top:0">Send to</h2><p><b>${pm ? esc(pm.full_name) : 'No project manager chosen'}</b>${pm ? `<br><span class="muted">${esc(pm.email)}</span>` : ''}</p>
+    ${list.length ? `<p class="small"><b>Also sent to:</b> ${list.map(esc).join(', ')}</p>` : ''}
+    <p class="muted small">The PDF (one data sheet per room, building information and the photo log) is emailed to the PM, with a copy to you${list.length ? ' and the HazMat email list' : ''}. Offline, it waits on this device and sends itself later.</p></div></div>
+   ${ed ? `<div class="sticky-actions"><button type="button" class="btn" data-hzgo="hub">← Survey</button><button type="button" class="btn pri" data-act="hzsubmit" ${pr.length ? 'disabled' : ''}>Submit to PM</button></div>` : ''}`;
+}
+async function hzAddPhotos(files, ref) {
+  const d = P.data, it = HZ_T.flatMap(t => hzItems(d, t.k)).find(x => x.id === ref); if (!it) return;
+  for (const f of [...files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|webp)$/i.test(f.name || ''))) {
+    try { const {blob, w, h} = await shrinkToBlob(f), id = uid(); await DB.set(phKey(id), blob); d.photos.push({id, ref, room: it.room, caption: '', date: today(), at: new Date().toISOString(), w, h}); }
+    catch (e) { toast(e.message || String(e)); }
+  }
+  touch(); const y = scrollY; render(); scrollTo(0, y);
+}
+
+/* PDF: one Regulated Materials Survey Data Sheet per room, then building information and the photo log */
+async function hzPdf(n) {
+  const {jsPDF} = window.jspdf; const doc = new jsPDF({unit: 'pt', format: 'letter', compress: true});
+  const d = n.data, W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 36, navy = [15, 42, 54], blue = [0, 173, 239];
+  const drawn = new Set(); // each page gets its title and logo once
+  const head = () => { const pg = doc.internal.getCurrentPageInfo().pageNumber; if (drawn.has(pg)) return; drawn.add(pg); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...navy); doc.text('REGULATED MATERIALS SURVEY DATA SHEET', M, 40); pdfLogo(doc, W - M - 62, 10, 40); };
+  const tx = v => String(v == null ? '' : v).replace(/cm²/g, 'sq. cm').replace(/m²/g, 'sq. m').replace(/ft²/g, 'sq. ft').replace(/²/g, '2').replace(/[^\u0000-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026\u20ac]/g, '?'); // the built-in PDF font covers Latin-1 + a few marks
+  const table = (title, cols, rows, y, opt = {}) => {
+    const tw = cols.reduce((a, c) => a + c[2], 0), avail = W - 2 * M;
+    doc.autoTable({startY: y, margin: {left: M, right: M, top: 76, bottom: 40}, theme: 'grid', rowPageBreak: 'avoid',
+      head: [[{content: tx(title).toUpperCase(), colSpan: cols.length, styles: {halign: 'left', fillColor: blue, fontSize: 8.5}}], cols.map(c => tx(c[1]))],
+      body: rows.length ? rows.map(r => r.map(tx)) : [[{content: opt.none || 'None recorded.', colSpan: cols.length, styles: {textColor: [110, 120, 126], fontStyle: 'italic'}}]],
+      styles: {fontSize: 8.2, cellPadding: 3, textColor: navy, lineColor: [129, 219, 255], lineWidth: 0.5, overflow: 'linebreak'},
+      headStyles: {fillColor: blue, textColor: navy, fontStyle: 'bold', fontSize: 7.8}, alternateRowStyles: {fillColor: [229, 248, 255]},
+      columnStyles: Object.fromEntries(cols.map((c, i) => [i, {cellWidth: avail * c[2] / tw}])), showHead: 'everyPage', willDrawPage: () => head()});
+    let yy = doc.lastAutoTable.finalY + 4;
+    if (opt.notes) { doc.setFontSize(7.2); doc.setTextColor(...navy); opt.notes.forEach(([a, b]) => { const lines = doc.splitTextToSize(`${a.toUpperCase()}: ${b}`, W - 2 * M); if (yy + lines.length * 8.5 > H - 40) { doc.addPage(); head(); yy = 80; } doc.setFont('helvetica', 'normal'); doc.text(lines, M, yy + 6); yy += lines.length * 8.5; }); }
+    return yy + 10;
+  };
+  const box = (on, x, y) => { doc.setDrawColor(...navy); doc.setLineWidth(0.6); doc.rect(x, y - 7, 8, 8); if (on) { doc.setLineWidth(1.3); doc.lines([[2.2, 2.6], [4.2, -6]], x + 1.4, y - 3.6); doc.setLineWidth(0.6); } };
+  const rooms = d.rooms.length ? d.rooms : [{id: '', name: '—'}];
+  rooms.forEach((r, ri) => {
+    if (ri) doc.addPage(); head();
+    doc.autoTable({startY: 60, theme: 'plain', margin: {left: M, right: M}, styles: {fontSize: 8.6, cellPadding: 1.8, textColor: navy},
+      columnStyles: {0: {fontStyle: 'bold', cellWidth: 96}, 2: {fontStyle: 'bold', cellWidth: 70}, 4: {fontStyle: 'bold', cellWidth: 34}},
+      body: [['Building Name:', tx(d.buildingName), 'Project #:', tx(d.projectNo), 'Date:', fmtD(d.date)], ['Room #/Description:', tx(r.name), 'Surveyor(s):', {content: tx(d.surveyors), colSpan: 3}], ['Site Contact (Name and Position):', {content: tx(d.siteContact), colSpan: 5}]]});
+    let y = doc.lastAutoTable.finalY + 12; doc.setFont('helvetica', 'bold'); doc.setFontSize(8.6); doc.setTextColor(...navy); doc.text('Type of Assessment:', M, y); doc.setFont('helvetica', 'normal');
+    HZ_ASSESS.forEach(([k, l], i) => { const x = M + 96 + i * 118; box((d.assess || []).includes(k), x, y); doc.text(l, x + 12, y); });
+    y += 14;
+    const info = d.roomInfo[r.id] || {};
+    HZ_T.forEach(t => {
+      const rows = hzItems(d, t.k).filter(it => it.room === r.id).map(it => t.cols.map(([k]) => String(it[k] || '')));
+      if (!rows.length && !(t.k === 'pcb_ballast' && info.fixtures)) return;
+      y = table(t.k === 'pcb_ballast' ? `${t.t}  ·  Total number of light fixtures: ${info.fixtures || '—'}` : t.t, t.cols, rows, y, {notes: t.notes});
+    });
+    const ds = HZ_DS.filter(([k]) => (info.ds || {})[k]);
+    if (ds.length || info.dsNote) y = table('Other Designated Substances (Visual Check)', [['s', 'Substance observed', 2], ['n', 'Notes', 4]], ds.map(([, l], i) => [l, i ? '' : (info.dsNote || '')]).concat(ds.length ? [] : [['—', info.dsNote]]), y);
+    const anything = HZ_T.some(t => hzItems(d, t.k).some(it => it.room === r.id)) || ds.length || info.fixtures;
+    if (!anything) { doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(110, 120, 126); doc.text('No regulated materials recorded in this room.', M, y + 8); }
+  });
+  // building information
+  const b = d.building || {};
+  doc.addPage(); head();
+  doc.autoTable({startY: 62, margin: {left: M, right: M, top: 76}, theme: 'grid', styles: {fontSize: 8.4, cellPadding: 3.2, textColor: navy, lineColor: [129, 219, 255], lineWidth: 0.5},
+    head: [[{content: 'BUILDING INFORMATION', colSpan: 4, styles: {fillColor: blue, textColor: navy, fontStyle: 'bold'}}]],
+    columnStyles: {0: {fontStyle: 'bold', cellWidth: 130}, 2: {fontStyle: 'bold', cellWidth: 110}},
+    body: [['Date of Construction:', b.constructed || '', 'Former Building Uses:', b.formerUses || ''], ['Date of Substantial Renovation:', b.renovated || '', 'Roof:', b.roof || ''], ['Floor System:', b.floorSystem || '', 'Number of Storeys:', b.storeys || ''],
+      ['Foundation:', b.foundation || '', 'Structure:', (b.structure || []).join(', ')], ['Heating:', (b.heating || []).join(', '), 'Interior Finish:', b.interiorFinish || ''],
+      ['Boiler:', [b.boilerSerial ? 'Serial #: ' + b.boilerSerial : '', b.boilerModel ? 'Model #: ' + b.boilerModel : ''].filter(Boolean).join('\n'), 'Exterior Cladding:', b.exteriorCladding || ''],
+      ['Fuel Type:', (b.fuel || []).join(', '), 'HVAC:', b.hvac || ''], ['Mezzanine:', b.mezzanine || '', '', '']].map(r => r.map(tx)),
+    didParseCell: c => { if (c.section === 'head') c.cell.styles.fillColor = blue; }});
+  table('Hydrocarbon Storage', [['cap', 'Tank Capacity', 1], ['type', 'Tank Type (AST/UST)', 1], ['material', 'Tank Material', 1], ['contents', 'Contents', 1], ['cond', 'Condition (G/F/P)', 0.9], ['staining', 'Staining', 0.8], ['contain', '2nd Containment', 0.9]],
+    (b.tanks || []).map(tk => ['cap', 'type', 'material', 'contents', 'cond', 'staining', 'contain'].map(k => tk[k] || '')), doc.lastAutoTable.finalY + 14, {none: 'No hydrocarbon storage recorded.'});
+  // photo log
+  const photos = d.photos || [];
+  if (photos.length) {
+    const all = HZ_T.flatMap(t => hzItems(d, t.k).map(it => [it, t]));
+    const cw = (W - 2 * M - 16) / 2, ch = 205; let i = 0;
+    for (const p of photos) {
+      if (i % 6 === 0) { doc.addPage(); head(); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...navy); doc.text('PHOTO LOG', M, 72); }
+      const col = i % 2, row = Math.floor((i % 6) / 2), x = M + col * (cw + 16), y = 82 + row * (ch + 22);
+      const b2 = await photoBlob(p); const [it, t] = all.find(([x]) => x.id === p.ref) || [{}, {}];
+      if (b2) { const url = await new Promise(res => { const f = new FileReader(); f.onload = () => res(f.result); f.readAsDataURL(b2); }); const k = Math.min(cw / (p.w || 4), ch / (p.h || 3)); const w = (p.w || 4) * k, h = (p.h || 3) * k; doc.addImage(url, 'JPEG', x + (cw - w) / 2, y + (ch - h) / 2, w, h, 'hzp' + p.id, 'FAST'); }
+      else { doc.setDrawColor(200); doc.rect(x, y, cw, ch); doc.setFontSize(8); doc.text('Photo not on this device', x + cw / 2, y + ch / 2, {align: 'center'}); }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8); doc.setTextColor(...navy);
+      const cap = `Photo ${i + 1}: ${hzRoomName(d, p.room)} – ${t.t || ''}${it.sid ? ' – ' + it.sid : ''}${(it.desc || it.loc || it.item || it.fixture || it.equip || it.product) ? ' – ' + (it.desc || it.loc || it.item || it.fixture || it.equip || it.product) : ''}`;
+      doc.text(doc.splitTextToSize(tx(cap), cw).slice(0, 2), x, y + ch + 10); i++;
+    }
+  }
+  const pages = doc.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(110, 120, 126); doc.text(`${d.buildingName || ''}${d.projectNo ? ' · ' + d.projectNo : ''}`, M, H - 18); doc.text(`Page ${i} of ${pages}`, W - M, H - 18, {align: 'right'}); }
+  return doc.output('blob');
+}
+const hzPdfName = n => `${(n.data.projectNo || 'Project').trim()} - ${n.data.buildingName || 'Building'} - Regulated Materials Survey ${n.data.date || today()}.pdf`.replace(/[\\/:*?"<>|]/g, '-');
+async function hzPdfAction(n) {
+  toast('Building the PDF…', 2500);
+  try { let b = null; if (S.mode === 'live' && n.status !== 'draft' && n.pdf_path && S.online && !n._queued) { try { b = await Live.pdf(n); } catch (e) { b = null; } } if (!b) b = await hzPdf(n); saveFile(b, hzPdfName(n)); }
+  catch (e) { toast(e.message || String(e), 6000); }
+}
+async function submitHaz() {
+  const pr = hzProblems(P); if (pr.length) { toast('Fix the listed items first.'); return; }
+  const pm = staffById(P.pm), list = mailList('hazmat');
+  if (!await ask('Submit survey?', `The PDF will be emailed to ${pm.full_name} (${pm.email}), with a copy to you${list.length ? ' and ' + list.length + ' other' + (list.length > 1 ? 's' : '') : ''}. You won’t be able to edit it unless you reopen it.`, 'Submit')) return;
+  let blob; try { toast('Building the PDF…', 2500); blob = await hzPdf(P); } catch (e) { toast(e.message || String(e), 6000); return; }
+  P.status = 'submitted'; P.submitted_at = new Date().toISOString(); P.data.submittedBy = S.me.id; P.email_error = null; touch();
+  if (S.mode === 'demo') { P._dirty = false; await saveNotes(); render(); const m = modal(`<div class="mhead"><h2>Email that would be sent</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div><div class="band small">Demo mode – nothing was sent.</div><p><b>To:</b> ${esc(pm.full_name)} &lt;${esc(pm.email)}&gt;<br><b>Subject:</b> ${esc(P.data.buildingName)} - ${esc(P.data.projectNo)} - Regulated Materials Survey</p><p><b>Attachment:</b> ${esc(hzPdfName(P))}</p><div class="row"><button class="btn pri" id="dl">Download the PDF</button><button class="btn" data-x>Close</button></div>`, 'narrow'); $('#dl', m).onclick = () => saveFile(blob, hzPdfName(P)); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) closeModal(); }); return; }
+  P._queued = true; S.outbox = S.outbox.filter(o => o.id !== P.id); S.outbox.push({id: P.id, pdf: blob});
+  await DB.set(key('outbox'), S.outbox); await saveNotes(); render();
+  if (S.online) { toast('Sending…'); await sync(); const n = S.notes[P.id]; toast(n && !n._queued ? 'Submitted and emailed to ' + pm.full_name : 'Saved. It will retry sending.', 5000); render(); }
+  else toast('You are offline. The survey is saved and will send itself when you are back online.', 5000);
+}
+
+/* events */
+document.addEventListener('input', e => {
+  const t = e.target; if (!P || !isHaz(P) || S.view !== 'plan' || !t.closest('#pform')) return; const d = P.data;
+  if (t.dataset.hz) { const it = hzItems(d, t.dataset.hz).find(x => x.id === t.dataset.id); if (it) { it[t.dataset.k] = t.value; touch(); } }
+  else if (t.dataset.hzb) { d.building[t.dataset.hzb] = t.value; touch(); }
+  else if (t.dataset.hztank != null) { d.building.tanks[+t.dataset.hztank][t.dataset.k] = t.value; touch(); }
+  else if (t.dataset.hzri) { const r = hzRoom(d); if (r) { (d.roomInfo[r] = d.roomInfo[r] || {})[t.dataset.hzri] = t.value; touch(); } }
+  if (t.dataset.f === 'buildingName') { const h = $('h1'); if (h) h.textContent = t.value || 'New survey'; }
+});
+document.addEventListener('change', e => {
+  const t = e.target; if (!P || !isHaz(P) || S.view !== 'plan' || !t.closest('#pform')) return; const d = P.data;
+  if (t.matches('[data-hzroom]')) { LS.set('hzroom:' + P.id, t.value); render(); }
+  else if (t.matches('[data-hzphoto]') && t.files && t.files.length) { const f = [...t.files]; t.value = ''; hzAddPhotos(f, t.dataset.hzphoto); }
+  else if (t.matches('[data-hzassess]')) { const s = new Set(d.assess || []); t.checked ? s.add(t.dataset.hzassess) : s.delete(t.dataset.hzassess); d.assess = HZ_ASSESS.map(a => a[0]).filter(k => s.has(k)); touch(); }
+  else if (t.matches('[data-hzbc]')) { const k = t.dataset.hzbc, s = new Set(d.building[k] || []); t.checked ? s.add(t.value) : s.delete(t.value); d.building[k] = [...s]; touch(); }
+  else if (t.matches('[data-hzds]')) { const r = hzRoom(d); if (r) { const ri = d.roomInfo[r] = d.roomInfo[r] || {}; ri.ds = ri.ds || {}; ri.ds[t.dataset.hzds] = t.checked; touch(); } }
+  else if (t.matches('[data-addsurv]') && t.value) { const s = staffById(t.value), cur = (d.surveyors || '').trim(); if (s && !cur.includes(s.full_name)) { d.surveyors = (cur ? cur + ', ' : '') + staffLabel(s); const i = $('[data-f=surveyors]'); if (i) i.value = d.surveyors; touch(); } t.value = ''; }
+});
+document.addEventListener('click', e => { // sub-page navigation inside a survey
+  const g = e.target.closest('[data-hzgo]'); if (!g || !P || !isHaz(P) || S.view !== 'plan') return;
+  e.preventDefault(); e.stopPropagation(); LS.set('hz:' + P.id, g.dataset.hzgo); render(); scrollTo(0, 0);
+}, true);
+async function hzClick(act, a, i) {
+  const d = P && P.data;
+  switch (act) {
+    case 'newhaz': newHaz(); return true;
+    case 'duphaz': newHaz(P); toast('Copied the project details, building information and room list. Entries and photos were cleared.'); return true;
+    case 'hzroomadd': { const name = await promptText('New room', 'Room #/Description', '', 'e.g. 101 – Main office'); if (!name) return true; const r = {id: uid(), name}; d.rooms.push(r); LS.set('hzroom:' + P.id, r.id); touch(); render(); return true; }
+    case 'hzroomren': { const r = d.rooms.find(x => x.id === hzRoom(d)); if (!r) return true; const name = await promptText('Rename room', 'Room #/Description', r.name); if (name) { r.name = name; touch(); render(); } return true; }
+    case 'hzadd': { const t = HZ_TK[a.dataset.t], room = hzRoom(d); if (!t || !room) return true; const it = {id: uid(), room}; if (t.code) it.sid = hzNextSid(d, t.code); if (t.k === 'merc') it.type = 'Thermostats';
+      d.items[t.k] = d.items[t.k] || []; d.items[t.k].push(it); touch(); render(); setTimeout(() => { const f = $(`[data-id="${it.id}"]:not(.sid)`); if (f) { f.focus(); f.scrollIntoView({block: 'center'}); } }, 50); return true; }
+    case 'hzdel': { const t = a.dataset.t, id = a.dataset.id; if (!await ask('Remove entry?', 'Remove this entry and its photos?', 'Remove', 1)) return true; d.items[t] = hzItems(d, t).filter(x => x.id !== id);
+      for (let k = d.photos.length - 1; k >= 0; k--) if (d.photos[k].ref === id) await removeObsPhoto(k); touch(); const y = scrollY; render(); scrollTo(0, y); return true; }
+    case 'hzphdel': { const k = d.photos.findIndex(p => p.id === a.dataset.id); if (k >= 0 && await ask('Remove photo?', 'Remove this photo?', 'Remove', 1)) { await removeObsPhoto(k); const y = scrollY; render(); scrollTo(0, y); } return true; }
+    case 'hztankadd': d.building.tanks = d.building.tanks || []; d.building.tanks.push({}); touch(); render(); return true;
+    case 'hztankdel': d.building.tanks.splice(i, 1); touch(); render(); return true;
+    case 'hzpdf': hzPdfAction(P); return true;
+    case 'hzsubmit': submitHaz(); return true;
+  }
+  return false;
+}
+
 /* ---------- library (PC editable table) ---------- */
 let LIB = null; // working copy
 const libFilled = x => !!(x.name.trim() || (x.desc || '').trim() || (x.control || '').trim());
@@ -1897,6 +2248,7 @@ document.addEventListener('click', async e => {
   const a = e.target.closest('[data-act]'); if (!a) return;
   const act = a.dataset.act, i = a.dataset.i != null ? +a.dataset.i : null;
   if (await obsClick(act, a, i)) return;
+  if (await hzClick(act, a, i)) return;
   switch (act) {
     case 'menu': openMenu(); break;
     case 'install': closeModal(); installApp(); break;
@@ -1925,7 +2277,7 @@ document.addEventListener('click', async e => {
     case 'reviewed': P.status = 'reviewed'; P.reviewed_at = new Date().toISOString(); P.reviewed_by = S.me.id; P._dirty = true; await saveNotes(); queueSync(200); render(); toast('Marked reviewed'); break;
     case 'reopen': if (await ask('Reopen to edit?', 'The plan goes back to draft. Submit it again when you are done, and the PM gets the new version.', 'Reopen')) { P.status = 'draft'; touch(); render(); } break;
     case 'dup': newPlan(P); toast('Copied. Signatures and dates were cleared.'); break;
-    case 'delplan': if (await ask('Delete plan?', 'This deletes the plan for everyone. It can’t be undone.', 'Delete', 1)) { if (S.mode === 'demo' || P._local) delete S.notes[P.id]; else { P._deleted = true; } S.outbox = S.outbox.filter(o => o.id !== P.id); await DB.set(key('outbox'), S.outbox); await saveNotes(); queueSync(200); if (isObs(P)) { for (const ph of P.data.photos || []) { try { await DB.set(phKey(ph.id), undefined); } catch (e) {} } if (S.mode === 'live' && S.online) { const paths = (P.data.photos || []).map(x => x.path).filter(Boolean); if (paths.length) Live.sb.storage.from('hn-photos').remove(paths).catch(() => {}); } go('obslist', null, true); } else go('list', null, true); } break;
+    case 'delplan': if (await ask('Delete plan?', 'This deletes the plan for everyone. It can’t be undone.', 'Delete', 1)) { if (S.mode === 'demo' || P._local) delete S.notes[P.id]; else { P._deleted = true; } S.outbox = S.outbox.filter(o => o.id !== P.id); await DB.set(key('outbox'), S.outbox); await saveNotes(); queueSync(200); if (isObs(P) || isHaz(P)) { for (const ph of P.data.photos || []) { try { await DB.set(phKey(ph.id), undefined); } catch (e) {} } if (S.mode === 'live' && S.online) { const paths = (P.data.photos || []).map(x => x.path).filter(Boolean); if (paths.length) Live.sb.storage.from('hn-photos').remove(paths).catch(() => {}); } go(isHaz(P) ? 'hazlist' : 'obslist', null, true); } else go('list', null, true); } break;
     // library
     case 'libadd': LIB.unshift({id: 'L' + uid().slice(0, 8), name: '', kind: 'Activity', loc: 'Field', desc: '', resp: 'Employee', risk: '', control: '', residual: '', active: true}); LS.set('libq', ''); viewLibrary($('#app')); $('[data-li="0"] textarea').focus(); break;
     case 'libdel': if (!libFilled(LIB[i])) { LIB.splice(i, 1); viewLibrary($('#app')); $$('[data-act=libsave],[data-act=libundo]').forEach(b => b.disabled = JSON.stringify(LIB) === JSON.stringify(S.cfg.library)); break; } if (await ask('Delete row?', `Delete “${LIB[i].name}” from the library? Plans that already use it keep their copy. (Untick “In use” instead to hide it without deleting.)`, 'Delete', 1)) { LIB.splice(i, 1); viewLibrary($('#app')); } break;
@@ -1965,7 +2317,7 @@ document.addEventListener('click', async e => {
 });
 function promptText(title, label, val) { return new Promise(res => { const m = modal(`<h2>${esc(title)}</h2><form id="pt"><label class="f">${esc(label)}<input type="text" id="ptv" value="${esc(val || '')}" required></label><div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" data-x>Cancel</button><button class="btn pri">OK</button></div></form>`, 'narrow'); $('#ptv', m).focus(); m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } }); $('#pt', m).onsubmit = e => { e.preventDefault(); const v = $('#ptv', m).value.trim(); closeModal(); res(v); }; }); }
 
-const VIEWS = {home: viewHome, list: viewList, plan: viewPlan, library: viewLibrary, docs: viewDocs, templates: viewTemplates, emergency: viewEmergency, admin: viewAdmin, texts: viewTexts, mailing: viewMailing, obslist: viewObsList};
+const VIEWS = {home: viewHome, list: viewList, plan: viewPlan, library: viewLibrary, docs: viewDocs, templates: viewTemplates, emergency: viewEmergency, admin: viewAdmin, texts: viewTexts, mailing: viewMailing, obslist: viewObsList, hazlist: viewHazList};
 
 /* ---------- demo sample ---------- */
 function seedDemoNotes() {
