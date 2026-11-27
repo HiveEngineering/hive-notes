@@ -133,7 +133,7 @@ input:disabled,textarea:disabled,select:disabled{opacity:.85;background:transpar
 .hzth{position:relative;display:inline-block}.hzth img{width:64px;height:48px;object-fit:cover;border-radius:6px;background:var(--field);display:block}
 .hzth .x{position:absolute;right:-6px;top:-6px;border:0;border-radius:99px;width:20px;height:20px;background:#c0392b;color:#fff;font-size:11px;cursor:pointer}
 .plbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0 8px}.plbar select{max-width:200px;min-height:38px}.plbar .sep{width:8px}
-#plwrap{position:relative;height:min(62vh,620px);min-height:320px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);touch-action:none;user-select:none;-webkit-user-select:none}
+#plwrap{position:relative;height:min(62vh,620px);min-height:320px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #plsvg{width:100%;height:100%;display:block;cursor:grab}
 #plsvg .plgrid line{stroke:var(--line);stroke-width:1;opacity:.55}
 #plsvg .plroom{fill:light-dark(rgba(229,248,255,.55),rgba(0,173,239,.08));stroke:var(--ink);stroke-width:3}
@@ -148,6 +148,12 @@ input:disabled,textarea:disabled,select:disabled{opacity:.85;background:transpar
 #plsvg .plmarkt{fill:var(--ink);font-weight:700;pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:3}
 #plsvg .plscale line{stroke:var(--ink);stroke-width:2}#plsvg .plscale text{fill:var(--ink);font-size:12px;text-anchor:middle}
 #plmenu{position:absolute;z-index:6;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);max-width:calc(100% - 12px)}
+#plring{position:absolute;z-index:5;width:60px;height:60px;margin:-30px 0 0 -30px;pointer-events:none}#plring svg{width:100%;height:100%}
+#plring .bg{fill:rgba(255,255,255,.6);stroke:var(--line);stroke-width:4}#plring .fg{fill:none;stroke:var(--blue);stroke-width:5;stroke-linecap:round;stroke-dasharray:119.4;stroke-dashoffset:119.4;animation:plring linear forwards}
+#plring .tick{fill:var(--navy)}#plring.k2 .fg{stroke:var(--navy)}#plring.k4 .bg{fill:var(--blue)}@keyframes plring{to{stroke-dashoffset:0}}
+#plsvg.lift .plroom.on,#plsvg.lift .plfeat.on{filter:drop-shadow(0 5px 7px rgba(0,0,0,.32))}#plsvg.lift{cursor:grabbing}
+#plsvg .plfeat{fill:light-dark(#eef1f2,rgba(255,255,255,.07));stroke:var(--muted);stroke-width:1.5;stroke-dasharray:5 3}#plsvg .plfeat.on{stroke:var(--blue);stroke-width:2.5}
+#plsvg .plfeatt{fill:var(--muted);text-anchor:middle;pointer-events:none;font-weight:600}.plfq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.plfq .btn.on{background:var(--blue);border-color:var(--blue);color:#fff}
 #plhint{position:absolute;right:10px;bottom:8px;font-size:12px;color:var(--muted);background:var(--card);padding:2px 8px;border-radius:8px;pointer-events:none;max-width:70%;text-align:right}
 .plsamples{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.plsamp{border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-size:13px;display:inline-flex;gap:6px;align-items:center}.plsamp.done{border-color:var(--blue);background:var(--light)}
 .hzds{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
@@ -249,7 +255,7 @@ details>summary{cursor:pointer;font-weight:600;min-height:36px;display:flex;alig
 <script>
 {
 'use strict';
-const VERSION = '0.5.1';
+const VERSION = '0.5.2';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1890,9 +1896,51 @@ async function hzClick(act, a, i) {
 /* ================= FLOOR PLAN SKETCH (HazMat surveys) =================
    Units are metres. Rooms are rectangles {id, roomId (survey room), x, y, w, h}.
    Openings sit on a room wall: {id, rid (plan room), side n|e|s|w, pos (centre, m from the wall's top/left end), width, type door|window, flip 0–3}.
-   Markers: {id, ref (survey entry id), x, y}. */
+   Markers: {id, ref (survey entry id), x, y}.
+   Other features (fireplace, panel, column…): boxes {id, label, x, y, w, h} in f.feats.
+   Hold 2 s on a room/feature to pick it up; 4 s picks up the whole connected drawing. */
 const PL = {s: 40, ox: 60, oy: 60, sel: null, place: null, undo: [], floor: null, ptrs: new Map(), drag: null, menu: null, fitted: {}};
-const PL_SNAP = 0.05, PL_DOOR = 0.9, PL_WIN = 1.2;
+const PL_SNAP = 0.05, PL_DOOR = 0.9, PL_WIN = 1.2, PL_HOLD1 = 2000, PL_HOLD2 = 4000;
+const PL_FEATS = [['Fireplace', 1.5, 0.6], ['Electrical panel', 0.6, 0.2], ['Radiator', 1, 0.2], ['Boiler / furnace', 0.9, 0.9], ['Tank', 0.8, 0.8], ['Counter / sink', 2, 0.6], ['Stairs', 1, 3], ['Column', 0.4, 0.4], ['Vent / grille', 0.4, 0.4], ['Closet', 1.2, 0.6], ['Opening (no door)', 0.9, 0]];
+const plFeats = f => f.feats || (f.feats = []);
+const plIn = (r, x, y) => x >= r.x - 0.01 && x <= r.x + r.w + 0.01 && y >= r.y - 0.01 && y <= r.y + r.h + 0.01;
+function plConnected(f, r0) { // every room touching r0, directly or through other rooms
+  const eps = 0.02, near = (a, b) => a.x <= b.x + b.w + eps && b.x <= a.x + a.w + eps && a.y <= b.y + b.h + eps && b.y <= a.y + a.h + eps;
+  const ids = new Set([r0.id]), q = [r0]; while (q.length) { const a = q.shift(); for (const b of f.rooms) if (!ids.has(b.id) && near(a, b)) { ids.add(b.id); q.push(b); } }
+  return [...ids];
+}
+function plMoveSet(f, roomIds) { // the rooms plus the features and sample markers inside them (doors/windows ride on their room)
+  const rooms = f.rooms.filter(r => roomIds.includes(r.id)), inside = o => rooms.some(r => plIn(r, o.x + (o.w || 0) / 2, o.y + (o.h || 0) / 2));
+  return [...rooms, ...plFeats(f).filter(inside), ...f.marks.filter(inside)].map(o => ({o, x0: o.x, y0: o.y}));
+}
+function plStartMove(g, f, kind, id) { // kind: room | feat | group
+  if (kind === 'feat') { const o = plFeats(f).find(x => x.id === id); Object.assign(g, {k: 'move', items: [{o, x0: o.x, y0: o.y}], anchor: o, excl: new Set()}); }
+  else { const ids = kind === 'group' ? PL.sel.ids : [id], aid = kind === 'group' ? (ids.includes(g.hit.id) ? g.hit.id : ids[0]) : id;
+    Object.assign(g, {k: 'move', items: plMoveSet(f, ids), anchor: f.rooms.find(x => x.id === aid), excl: new Set(ids)}); }
+  g.ax0 = g.anchor.x; g.ay0 = g.anchor.y;
+}
+const plBuzz = () => { try { navigator.vibrate && navigator.vibrate(35); } catch (x) {} };
+function plHoldEnd(g) { if (!g) return; clearTimeout(g.t2); clearTimeout(g.t4); const ring = $('#plring'); if (ring) ring.hidden = true; }
+function plHold(g, svg) { // long press: 2 s lifts the room/feature, 4 s lifts everything connected to the room
+  const ring = $('#plring'), isFeat = g.hit.t === 'feat';
+  if (ring) { ring.hidden = false; ring.className = ''; ring.style.left = g.p0.sx + 'px'; ring.style.top = g.p0.sy + 'px';
+    ring.innerHTML = `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" class="bg"/><circle cx="24" cy="24" r="19" class="fg" transform="rotate(-90 24 24)" style="animation-duration:${isFeat ? PL_HOLD1 : PL_HOLD2}ms"/>${isFeat ? '' : '<circle cx="24" cy="43" r="2.6" class="tick"/>'}</svg>`; }
+  g.t2 = setTimeout(() => {
+    if (PL.drag !== g || g.moved) return; const f = plFloor(P.data);
+    if (g.k === 'pan') plPush(); // (a selected room is already set up to move and has its undo step)
+    g.lp = 1; const kind = isFeat ? 'feat' : 'room'; PL.sel = {t: kind, id: g.hit.id}; plStartMove(g, f, kind, g.hit.id);
+    g.p0 = PL.ptrs.get(g.pid) || g.p0; plBuzz(); svg.classList.add('lift');
+    if (ring) { ring.classList.add('k2'); if (isFeat) ring.hidden = true; }
+    PL.hintx = isFeat ? 'Picked up – drag to move it.' : 'Room picked up – drag to move it, or keep holding to pick up the whole connected drawing.';
+    plDraw(); plPanel();
+  }, PL_HOLD1);
+  if (!isFeat) g.t4 = setTimeout(() => {
+    if (PL.drag !== g || g.moved || !g.lp) return; const f = plFloor(P.data), r = f.rooms.find(x => x.id === g.hit.id); if (!r) return;
+    const ids = plConnected(f, r); PL.sel = {t: 'group', ids}; plStartMove(g, f, 'group'); g.p0 = PL.ptrs.get(g.pid) || g.p0; plBuzz();
+    if (ring) { ring.classList.add('k4'); setTimeout(() => { ring.hidden = true; }, 350); }
+    PL.hintx = `Whole drawing picked up (${ids.length} room${ids.length === 1 ? '' : 's'}) – drag to move it.`; plDraw(); plPanel();
+  }, PL_HOLD2);
+}
 const plR = v => +(Math.round(v / PL_SNAP) * PL_SNAP).toFixed(2);
 const plFmt = v => (Math.round(v * 100) / 100).toFixed(2).replace(/\.?0+$/, '');
 function plData(d) { d.plan = d.plan || {floors: []}; if (!d.plan.floors.length) d.plan.floors.push({id: uid(), name: 'Ground floor', rooms: [], open: [], marks: []}); return d.plan; }
@@ -1917,7 +1965,7 @@ function hzPlanPage(n, ed) {
    ${ed ? `<button type="button" class="btn sm" data-pl="floor+">+ Floor</button><button type="button" class="btn sm" data-pl="floorren">Rename</button><span class="sep"></span>
    <button type="button" class="btn sm pri" data-pl="room+">+ Room</button><button type="button" class="btn sm" data-pl="undo" ${PL.undo.length ? '' : 'disabled'}>↶ Undo</button>` : ''}
    <span class="grow"></span><button type="button" class="btn sm" data-pl="zoom-" aria-label="Zoom out">−</button><button type="button" class="btn sm" data-pl="zoom+" aria-label="Zoom in">+</button><button type="button" class="btn sm" data-pl="fit">Fit</button></div>
-  <div id="plwrap"><svg id="plsvg" xmlns="http://www.w3.org/2000/svg"></svg><div id="plmenu" hidden></div><div id="plhint"></div></div>
+  <div id="plwrap"><svg id="plsvg" xmlns="http://www.w3.org/2000/svg"></svg><div id="plmenu" hidden></div><div id="plring" hidden></div><div id="plhint"></div></div>
   <div id="plpanel" class="card"></div>`;
 }
 function plInit(ed) {
@@ -1928,32 +1976,39 @@ function plInit(ed) {
   const world = ({sx, sy}) => ({x: (sx - PL.ox) / PL.s, y: (sy - PL.oy) / PL.s});
   svg.addEventListener('pointerdown', e => {
     try { svg.setPointerCapture(e.pointerId); } catch (x) {} const p = pt(e); PL.ptrs.set(e.pointerId, p); plMenu(null);
-    if (PL.ptrs.size === 2) { const [a, b] = [...PL.ptrs.values()]; PL.drag = {k: 'pinch', d0: Math.hypot(a.sx - b.sx, a.sy - b.sy), s0: PL.s, ox0: PL.ox, oy0: PL.oy, mx: (a.sx + b.sx) / 2, my: (a.sy + b.sy) / 2}; return; }
+    if (PL.ptrs.size === 2) { plHoldEnd(PL.drag); const [a, b] = [...PL.ptrs.values()]; PL.drag = {k: 'pinch', d0: Math.hypot(a.sx - b.sx, a.sy - b.sy), s0: PL.s, ox0: PL.ox, oy0: PL.oy, mx: (a.sx + b.sx) / 2, my: (a.sy + b.sy) / 2}; return; }
     const w = world(p), f = plFloor(P.data), hit = plHit(w, f), tol = 14 / PL.s;
     PL.drag = {k: 'pan', p0: p, ox0: PL.ox, oy0: PL.oy, moved: false, hit, w0: w};
     if (!ed) return;
-    if (hit.t === 'handle') { plPush(); const r = f.rooms.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'resize', r, w0: r.w, h0: r.h}; }
-    else if (hit.t === 'mark' && PL.sel && PL.sel.id === hit.id) { plPush(); const m = f.marks.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'mark', m, x0: m.x, y0: m.y}; }
-    else if (hit.t === 'open' && PL.sel && PL.sel.id === hit.id) { plPush(); const o = f.open.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'open', o, pos0: o.pos}; }
-    else if (hit.t === 'room' && PL.sel && PL.sel.id === hit.id && !hit.wall) { plPush(); const r = f.rooms.find(x => x.id === hit.id); PL.drag = {...PL.drag, k: 'move', r, x0: r.x, y0: r.y}; }
+    const g = PL.drag, sel = PL.sel || {};
+    if (hit.t === 'handle') { plPush(); const r = (hit.k === 'feat' ? plFeats(f) : f.rooms).find(x => x.id === hit.id); Object.assign(g, {k: 'resize', r, min: hit.k === 'feat' ? 0.1 : 0.5, w0: r.w, h0: r.h}); return; }
+    if (hit.t === 'mark' && sel.id === hit.id) { plPush(); const m = f.marks.find(x => x.id === hit.id); Object.assign(g, {k: 'mark', m, x0: m.x, y0: m.y}); return; }
+    if (hit.t === 'open' && sel.id === hit.id) { plPush(); const o = f.open.find(x => x.id === hit.id); Object.assign(g, {k: 'open', o, pos0: o.pos}); return; }
+    if (sel.t === 'group' && (hit.t === 'room' ? sel.ids.includes(hit.id) : hit.t === 'feat' && plMoveSet(f, sel.ids).some(i => i.o.id === hit.id))) { plPush(); plStartMove(g, f, 'group'); return; }
+    if (hit.t === 'room' && sel.id === hit.id && !hit.wall) { plPush(); plStartMove(g, f, 'room', hit.id); }
+    else if (hit.t === 'feat' && sel.id === hit.id) { plPush(); plStartMove(g, f, 'feat', hit.id); }
+    if (hit.t === 'room' || hit.t === 'feat') { g.pid = e.pointerId; plHold(g, svg); }
   });
+  svg.addEventListener('contextmenu', e => e.preventDefault()); // a long press must not open the phone's menu
   svg.addEventListener('pointermove', e => {
     if (!PL.ptrs.has(e.pointerId)) return; const p = pt(e); PL.ptrs.set(e.pointerId, p); const g = PL.drag; if (!g) return;
     if (g.k === 'pinch' && PL.ptrs.size === 2) { const [a, b] = [...PL.ptrs.values()], k = Math.hypot(a.sx - b.sx, a.sy - b.sy) / g.d0; plZoomAt(g.mx, g.my, g.s0 * k, g); plDraw(); return; }
-    const dx = p.sx - g.p0.sx, dy = p.sy - g.p0.sy; if (!g.moved && Math.hypot(dx, dy) < 6) return; g.moved = true;
+    const dx = p.sx - g.p0.sx, dy = p.sy - g.p0.sy; if (!g.moved && Math.hypot(dx, dy) < 6) return; if (!g.moved) plHoldEnd(g); g.moved = true;
     const f = plFloor(P.data), mx = dx / PL.s, my = dy / PL.s;
     if (g.k === 'pan') { PL.ox = g.ox0 + dx; PL.oy = g.oy0 + dy; }
-    else if (g.k === 'move') { const sn = plSnapMove(g.r, plR(g.x0 + mx), plR(g.y0 + my), f); g.r.x = sn.x; g.r.y = sn.y; }
-    else if (g.k === 'resize') { g.r.w = Math.max(0.5, plR(g.w0 + mx)); g.r.h = Math.max(0.5, plR(g.h0 + my)); f.open.filter(o => o.rid === g.r.id).forEach(o => { o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(g.r, o.side) - o.width / 2); }); }
+    else if (g.k === 'move') { const sn = plSnapMove(g.anchor, plR(g.ax0 + mx), plR(g.ay0 + my), f, g.excl), ddx = sn.x - g.ax0, ddy = sn.y - g.ay0; g.items.forEach(it => { it.o.x = plR(it.x0 + ddx); it.o.y = plR(it.y0 + ddy); }); }
+    else if (g.k === 'resize') { g.r.w = Math.max(g.min, plR(g.w0 + mx)); g.r.h = Math.max(g.min, plR(g.h0 + my)); f.open.filter(o => o.rid === g.r.id).forEach(o => { o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(g.r, o.side) - o.width / 2); }); }
     else if (g.k === 'mark') { g.m.x = plR(g.x0 + mx); g.m.y = plR(g.y0 + my); }
     else if (g.k === 'open') { const r = f.rooms.find(x => x.id === g.o.rid), along = g.o.side === 'n' || g.o.side === 's' ? mx : my; g.o.pos = Math.min(Math.max(g.o.width / 2, plR(g.pos0 + along)), plWallLen(r, g.o.side) - g.o.width / 2); }
     plDraw(g.k !== 'pan');
   });
   const up = e => {
     const g = PL.drag; PL.ptrs.delete(e.pointerId); if (PL.ptrs.size) return; PL.drag = null; if (!g) return;
+    plHoldEnd(g); svg.classList.remove('lift'); PL.hintx = null;
     if (g.k === 'pinch') return;
     if (g.moved) { if (g.k !== 'pan') plChanged(); return; }
     if (g.k !== 'pan') PL.undo.pop(); // pressed but didn't drag: nothing changed
+    if (g.lp) { plDraw(); return; } // picked up and put down again: keep the selection
     plTap(g.hit, g.w0, pt(e), ed);
   };
   svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
@@ -1970,20 +2025,21 @@ function plFit() {
   PL.s = Math.min(160, Math.max(6, Math.min((W - 80) / (x1 - x0 || 1), (H - 80) / (y1 - y0 || 1))));
   PL.ox = (W - (x1 - x0) * PL.s) / 2 - x0 * PL.s; PL.oy = (H - (y1 - y0) * PL.s) / 2 - y0 * PL.s;
 }
-function plSnapMove(r, x, y, f) { // line edges up with neighbouring rooms
+function plSnapMove(r, x, y, f, excl) { // line edges up with neighbouring rooms
   const tol = 10 / PL.s; let bx = x, by = y, dxBest = tol, dyBest = tol;
-  for (const o of f.rooms) { if (o.id === r.id) continue;
+  for (const o of f.rooms) { if (o.id === r.id || (excl && excl.has(o.id))) continue;
     for (const [a, b] of [[x, o.x], [x, o.x + o.w], [x + r.w, o.x], [x + r.w, o.x + o.w]]) { const dd = Math.abs(a - b); if (dd < dxBest) { dxBest = dd; bx = x + (b - a); } }
     for (const [a, b] of [[y, o.y], [y, o.y + o.h], [y + r.h, o.y], [y + r.h, o.y + o.h]]) { const dd = Math.abs(a - b); if (dd < dyBest) { dyBest = dd; by = y + (b - a); } } }
   return {x: plR(bx), y: plR(by)};
 }
 function plHit(w, f) {
   const tol = 12 / PL.s, segDist = (px, py, x1, y1, x2, y2) => { const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2, t = l2 ? Math.max(0, Math.min(1, ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2)) : 0; return Math.hypot(px - (x1 + t * (x2 - x1)), py - (y1 + t * (y2 - y1))); };
-  const sel = PL.sel && f.rooms.find(r => r.id === PL.sel.id);
-  if (sel && Math.hypot(w.x - (sel.x + sel.w), w.y - (sel.y + sel.h)) < tol * 1.4) return {t: 'handle', id: sel.id};
+  const sel = PL.sel && PL.sel.t === 'room' && f.rooms.find(r => r.id === PL.sel.id), sb = sel || (PL.sel && PL.sel.t === 'feat' && plFeats(f).find(o => o.id === PL.sel.id));
+  if (sb && Math.hypot(w.x - (sb.x + sb.w), w.y - (sb.y + sb.h)) < tol * 1.4) return {t: 'handle', id: sb.id, k: PL.sel.t};
   for (const m of f.marks) if (Math.hypot(w.x - m.x, w.y - m.y) < tol) return {t: 'mark', id: m.id};
   for (const o of f.open) { const r = f.rooms.find(x => x.id === o.rid); if (!r) continue; const g = plOpenGeom(r, o);
     if (segDist(w.x, w.y, g.cx - g.ux * o.width / 2, g.cy - g.uy * o.width / 2, g.cx + g.ux * o.width / 2, g.cy + g.uy * o.width / 2) < tol) return {t: 'open', id: o.id}; }
+  { const e = 6 / PL.s; for (const o of [...plFeats(f)].reverse()) if (w.x > o.x - e && w.x < o.x + o.w + e && w.y > o.y - e && w.y < o.y + o.h + e) return {t: 'feat', id: o.id}; }
   // walls: the selected room first, then any room
   const rooms = sel ? [sel, ...f.rooms.filter(r => r !== sel)] : f.rooms;
   for (const r of rooms) for (const [side, [x1, y1, x2, y2]] of Object.entries(plWalls(r))) if (segDist(w.x, w.y, x1, y1, x2, y2) < tol) {
@@ -2007,7 +2063,7 @@ function plMenu(m) {
   if (!m) { el.hidden = true; return; }
   const r = plFloor(P.data).rooms.find(x => x.id === m.rid), len = plWallLen(r, m.side), dir = {n: 'north (top)', s: 'south (bottom)', e: 'east (right)', w: 'west (left)'}[m.side];
   el.innerHTML = `<div class="small muted">Wall · ${plFmt(len)} m · ${dir} side of ${esc(plName(P.data, r))}</div>
-   <div class="row" style="gap:6px;margin-top:6px"><button type="button" class="btn sm" data-pl="door">🚪 Door</button><button type="button" class="btn sm" data-pl="window">🪟 Window</button><button type="button" class="btn sm pri" data-pl="roomside">＋ Room on this side</button><button type="button" class="btn sm" data-pl="menuclose" aria-label="Close">✕</button></div>`;
+   <div class="row" style="gap:6px;margin-top:6px"><button type="button" class="btn sm" data-pl="door">🚪 Door</button><button type="button" class="btn sm" data-pl="window">🪟 Window</button><button type="button" class="btn sm" data-pl="feat">⬚ Other…</button><button type="button" class="btn sm pri" data-pl="roomside">＋ Room on this side</button><button type="button" class="btn sm" data-pl="menuclose" aria-label="Close">✕</button></div>`;
   const wrap = $('#plwrap').getBoundingClientRect(); el.hidden = false;
   el.style.left = Math.max(6, Math.min(m.scr.sx - 120, wrap.width - el.offsetWidth - 6)) + 'px'; el.style.top = Math.max(6, Math.min(m.scr.sy + 14, wrap.height - el.offsetHeight - 6)) + 'px';
 }
@@ -2019,22 +2075,33 @@ function plDraw(light) {
   for (let gx = Math.floor(-PL.ox / s / step) * step; X(gx) < W; gx += step) grid += `<line x1="${X(gx)}" y1="0" x2="${X(gx)}" y2="${H}"/>`;
   for (let gy = Math.floor(-PL.oy / s / step) * step; Y(gy) < H; gy += step) grid += `<line x1="0" y1="${Y(gy)}" x2="${W}" y2="${Y(gy)}"/>`;
   let out = `<g class="plgrid">${grid}</g>`;
+  const grp = sel.t === 'group' ? new Set([...sel.ids, ...plMoveSet(f, sel.ids).map(i => i.o.id)]) : new Set();
+  let labs = ''; // room names go on top of feature boxes
   f.rooms.forEach(r => {
-    const on = sel.id === r.id;
+    const on = sel.id === r.id || grp.has(r.id);
     out += `<rect class="plroom ${on ? 'on' : ''}" x="${X(r.x)}" y="${Y(r.y)}" width="${r.w * s}" height="${r.h * s}"/>`;
     const cx = X(r.x + r.w / 2), cy = Y(r.y + r.h / 2), samples = f.marks.length;
-    out += `<text class="pllabel" x="${cx}" y="${cy - fs * 0.15}" font-size="${fs}">${esc(plName(d, r))}</text><text class="pldim" x="${cx}" y="${cy + fs * 1.05}" font-size="${fs * 0.78}">${plFmt(r.w)} × ${plFmt(r.h)} m</text>`;
-    if (on) {
+    labs += `<text class="pllabel" x="${cx}" y="${cy - fs * 0.15}" font-size="${fs}">${esc(plName(d, r))}</text><text class="pldim" x="${cx}" y="${cy + fs * 1.05}" font-size="${fs * 0.78}">${plFmt(r.w)} × ${plFmt(r.h)} m</text>`;
+    if (sel.id === r.id) {
       out += `<text class="pldim edge" x="${cx}" y="${Y(r.y) - 6}" font-size="${fs * 0.8}">${plFmt(r.w)} m</text><text class="pldim edge" x="${X(r.x) - 6}" y="${cy}" font-size="${fs * 0.8}" text-anchor="end">${plFmt(r.h)} m</text>`;
       out += `<rect class="plhandle" x="${X(r.x + r.w) - 8}" y="${Y(r.y + r.h) - 8}" width="16" height="16" rx="3"/>`;
     }
   });
+  plFeats(f).forEach(o => {
+    const on = sel.id === o.id || grp.has(o.id), lab = o.label || 'Feature', fz = Math.min(fs * 0.72, o.h * s * 0.55, o.w * s * 1.15 / Math.max(4, lab.length));
+    out += `<rect class="plfeat ${on ? 'on' : ''}" x="${X(o.x)}" y="${Y(o.y)}" width="${o.w * s}" height="${o.h * s}" rx="2"/>`;
+    if (fz >= 7) out += `<text class="plfeatt" x="${X(o.x + o.w / 2)}" y="${Y(o.y + o.h / 2) + fz * 0.35}" font-size="${fz}">${esc(lab)}</text>`;
+    if (sel.id === o.id) out += `<rect class="plhandle" x="${X(o.x + o.w) - 7}" y="${Y(o.y + o.h) - 7}" width="14" height="14" rx="3"/>`;
+  });
+  out += labs;
   f.open.forEach(o => {
-    const r = f.rooms.find(x => x.id === o.rid); if (!r) return; const g = plOpenGeom(r, o), on = sel.id === o.id;
+    const r = f.rooms.find(x => x.id === o.rid); if (!r) return; const g = plOpenGeom(r, o), on = sel.id === o.id || grp.has(r.id);
     const ax = g.cx - g.ux * o.width / 2, ay = g.cy - g.uy * o.width / 2, bx = g.cx + g.ux * o.width / 2, by = g.cy + g.uy * o.width / 2;
     out += `<line class="plgap" x1="${X(ax)}" y1="${Y(ay)}" x2="${X(bx)}" y2="${Y(by)}"/>`;
     if (o.type === 'window') {
       const k = 0.06; out += `<line class="plwin ${on ? 'on' : ''}" x1="${X(ax + g.nx * k)}" y1="${Y(ay + g.ny * k)}" x2="${X(bx + g.nx * k)}" y2="${Y(by + g.ny * k)}"/><line class="plwin ${on ? 'on' : ''}" x1="${X(ax - g.nx * k)}" y1="${Y(ay - g.ny * k)}" x2="${X(bx - g.nx * k)}" y2="${Y(by - g.ny * k)}"/>`;
+    } else if (o.type === 'gap') { // opening with no door: just the wall ends
+      const k = 0.12; out += [[ax, ay], [bx, by]].map(([px, py]) => `<line class="plwin ${on ? 'on' : ''}" x1="${X(px + g.nx * k)}" y1="${Y(py + g.ny * k)}" x2="${X(px - g.nx * k)}" y2="${Y(py - g.ny * k)}"/>`).join('');
     } else {
       const hingeEnd = (o.flip || 0) & 1, inward = ((o.flip || 0) & 2) ? -1 : 1;
       const hx = hingeEnd ? bx : ax, hy = hingeEnd ? by : ay, ox2 = hingeEnd ? ax : bx, oy2 = hingeEnd ? ay : by;
@@ -2043,37 +2110,50 @@ function plDraw(light) {
     }
   });
   const items = HZ_T.flatMap(t => hzItems(d, t.k));
-  f.marks.forEach(m => { const it = items.find(x => x.id === m.ref); if (!it) return; const on = sel.id === m.id;
+  f.marks.forEach(m => { const it = items.find(x => x.id === m.ref); if (!it) return; const on = sel.id === m.id || grp.has(m.id);
     out += `<circle class="plmark ${on ? 'on' : ''}" cx="${X(m.x)}" cy="${Y(m.y)}" r="${on ? 9 : 7}"/><text class="plmarkt" x="${X(m.x) + 10}" y="${Y(m.y) + 4}" font-size="${Math.max(10, fs * 0.8)}">${esc(it.sid || '•')}</text>`; });
   // scale bar
   const nice = [0.5, 1, 2, 5, 10, 20, 50].find(v => v * s >= 60) || 50;
   out += `<g class="plscale"><line x1="14" y1="${H - 16}" x2="${14 + nice * s}" y2="${H - 16}"/><line x1="14" y1="${H - 21}" x2="14" y2="${H - 11}"/><line x1="${14 + nice * s}" y1="${H - 21}" x2="${14 + nice * s}" y2="${H - 11}"/><text x="${14 + nice * s / 2}" y="${H - 24}">${nice} m</text></g>`;
   svg.innerHTML = out;
   const ub = $('[data-pl=undo]'); if (ub) ub.disabled = !PL.undo.length;
-  const hint = $('#plhint'); if (hint) hint.textContent = PL.place ? 'Tap the plan where the sample was taken.' : !f.rooms.length ? 'Start with “+ Room”.' : 'Tap a wall for a door, window or the next room · drag to move · pinch or scroll to zoom';
+  const hint = $('#plhint'); if (hint) hint.textContent = PL.hintx || (PL.place ? 'Tap the plan where the sample was taken.' : !f.rooms.length ? 'Start with “+ Room”.' : 'Tap a wall to add things · hold 2 s to move · 4 s moves the whole drawing');
 }
 function plSweep(g, hingeEnd, inward) { // which way the door arc bends
   const cross = (hingeEnd ? -1 : 1) * (g.ux * g.ny - g.uy * g.nx) * inward; return cross > 0 ? 1 : 0;
 }
 function plPanel() {
   const el = $('#plpanel'); if (!el) return; const d = P.data, f = plFloor(d), ed = canEdit(P), sel = PL.sel;
-  if (!sel) { el.innerHTML = `<p class="small muted" style="margin:0">${f.rooms.length ? 'Tap a room to see its size and samples. Tap a wall to add a door, a window or the next room.' : 'Add the first room with “+ Room”, then tap its walls to add doors, windows and the rooms next to it. Sizes are in metres.'}</p>`; return; }
+  if (!sel) { el.innerHTML = `<p class="small muted" style="margin:0">${f.rooms.length ? 'Tap a room to see its size and samples. Tap a wall to add a door, a window, another feature or the next room. Hold a room or feature for 2 seconds to move it; keep holding to 4 seconds to move the whole connected drawing.' : 'Add the first room with “+ Room”, then tap its walls to add doors, windows and the rooms next to it. Sizes are in metres.'}</p>`; return; }
   if (sel.t === 'room') {
     const r = f.rooms.find(x => x.id === sel.id); if (!r) { PL.sel = null; return plPanel(); }
     const items = r.roomId ? HZ_T.flatMap(t => hzItems(d, t.k).filter(it => it.room === r.roomId && (it.sid || '').trim()).map(it => [it, t])) : [];
     el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">${esc(plName(d, r))}</h3>${ed ? '<button type="button" class="btn sm warn" data-pl="delroom">Delete room</button>' : ''}</div>
      <div class="row" style="gap:10px;margin-top:8px;flex-wrap:wrap"><label class="f" style="margin:0;width:110px">Width (m)<input type="number" step="0.05" min="0.5" inputmode="decimal" data-plr="w" value="${plFmt(r.w)}"></label>
      <label class="f" style="margin:0;width:110px">Length (m)<input type="number" step="0.05" min="0.5" inputmode="decimal" data-plr="h" value="${plFmt(r.h)}"></label>
-     ${ed ? '<button type="button" class="btn sm" data-pl="rotate" style="margin-top:20px">⟲ Swap</button>' : ''}
+     ${ed ? '<button type="button" class="btn sm" data-pl="rotate" style="margin-top:20px">⟲ Swap</button><button type="button" class="btn sm" data-pl="featroom" style="margin-top:20px">⬚ + Feature</button>' : ''}
      <label class="f" style="margin:0;min-width:190px;flex:1">Survey room<select data-plr="roomId">${(d.rooms || []).map(x => `<option value="${esc(x.id)}" ${x.id === r.roomId ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>
      <div style="margin-top:10px"><b class="small">Samples in this room</b>${items.length ? `<div class="plsamples">${items.map(([it, t]) => { const placed = f.marks.some(m => m.ref === it.id); return `<span class="plsamp ${placed ? 'done' : ''}"><b>${esc(it.sid)}</b> <span class="muted">${esc(t.t.replace('ACM - ', ''))}</span>${ed ? (placed ? ` <button type="button" class="btn sm" data-pl="unplace" data-id="${esc(it.id)}">Remove marker</button>` : ` <button type="button" class="btn sm pri" data-pl="place" data-id="${esc(it.id)}">Place</button>`) : (placed ? ' ✓' : '')}</span>`; }).join('')}</div>` : '<p class="small muted" style="margin:4px 0 0">No samples recorded in this room yet.</p>'}</div>`;
     if (!ed) $$('#plpanel input,#plpanel select').forEach(i => i.disabled = true);
   } else if (sel.t === 'open') {
     const o = f.open.find(x => x.id === sel.id); if (!o) { PL.sel = null; return plPanel(); }
-    el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">${o.type === 'door' ? '🚪 Door' : '🪟 Window'}</h3>${ed ? '<button type="button" class="btn sm warn" data-pl="delopen">Delete</button>' : ''}</div>
+    el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">${{door: '🚪 Door', window: '🪟 Window', gap: 'Opening (no door)'}[o.type] || 'Opening'}</h3>${ed ? '<button type="button" class="btn sm warn" data-pl="delopen">Delete</button>' : ''}</div>
      <div class="row" style="gap:10px;margin-top:8px"><label class="f" style="margin:0;width:110px">Width (m)<input type="number" step="0.05" min="0.3" inputmode="decimal" data-plo="width" value="${plFmt(o.width)}"></label>
      ${ed && o.type === 'door' ? '<button type="button" class="btn sm" data-pl="flip" style="margin-top:20px">Flip swing</button>' : ''}</div><p class="small muted" style="margin:6px 0 0">Drag it to slide along the wall.</p>`;
     if (!ed) $$('#plpanel input').forEach(i => i.disabled = true);
+  } else if (sel.t === 'feat') {
+    const o = plFeats(f).find(x => x.id === sel.id); if (!o) { PL.sel = null; return plPanel(); }
+    el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">⬚ ${esc(o.label || 'Feature')}</h3>${ed ? '<button type="button" class="btn sm warn" data-pl="delfeat">Delete</button>' : ''}</div>
+     <div class="row" style="gap:10px;margin-top:8px;flex-wrap:wrap"><label class="f" style="margin:0;min-width:170px;flex:1">Label<input type="text" data-plf="label" value="${esc(o.label || '')}" list="plfdl"></label>
+     <label class="f" style="margin:0;width:100px">Width (m)<input type="number" step="0.05" min="0.1" inputmode="decimal" data-plf="w" value="${plFmt(o.w)}"></label>
+     <label class="f" style="margin:0;width:100px">Depth (m)<input type="number" step="0.05" min="0.1" inputmode="decimal" data-plf="h" value="${plFmt(o.h)}"></label>
+     ${ed ? '<button type="button" class="btn sm" data-pl="featrot" style="margin-top:20px">⟲ Turn</button>' : ''}</div>
+     <datalist id="plfdl">${PL_FEATS.slice(0, -1).map(([l]) => `<option value="${esc(l)}">`).join('')}</datalist><p class="small muted" style="margin:6px 0 0">Drag it to move it · drag the corner to resize.</p>`;
+    if (!ed) $$('#plpanel input').forEach(i => i.disabled = true);
+  } else if (sel.t === 'group') {
+    const rooms = f.rooms.filter(r => sel.ids.includes(r.id));
+    el.innerHTML = `<div class="row" style="justify-content:space-between"><h3 style="margin:0">Connected drawing · ${rooms.length} room${rooms.length === 1 ? '' : 's'}</h3><button type="button" class="btn sm" data-pl="deselect">Done</button></div>
+     <p class="small" style="margin:6px 0 0">${rooms.map(r => esc(plName(d, r))).join(' · ')}</p><p class="small muted" style="margin:4px 0 0">Drag any of these rooms to move the whole drawing – doors, windows, features and sample markers come with it.</p>`;
   } else if (sel.t === 'mark') {
     const m = f.marks.find(x => x.id === sel.id), it = m && HZ_T.flatMap(t => hzItems(d, t.k).map(x => [x, t])).find(([x]) => x.id === m.ref);
     if (!it) { PL.sel = null; return plPanel(); }
@@ -2093,6 +2173,26 @@ function plRoomDialog(title, d, f, defW, defH) { // pick a survey room (or name 
     $('#plrf', m).onsubmit = e => { e.preventDefault(); const w = parseFloat($('#plrw', m).value), h = parseFloat($('#plrh', m).value), name = $('#plrn', m).value.trim();
       if (!sel.value && !name) { $('#plrn', m).focus(); return; } if (!(w > 0) || !(h > 0)) return; closeModal(); res({roomId: sel.value, name, w: plR(w), h: plR(h)}); };
     m.addEventListener('click', e => { if (e.target.closest('[data-x]')) { closeModal(); res(null); } });
+  });
+}
+function plFeatDialog(onWall) { // label (quick picks) + size; "Opening (no door)" makes a wall opening instead of a box
+  const picks = PL_FEATS.filter(p => onWall || p[2]);
+  return new Promise(res => {
+    const m = modal(`<div class="mhead"><h2>Other feature</h2><button class="iconbtn" data-x aria-label="Close">✕</button></div><form id="plff">
+     <div class="plfq">${picks.map(([l], i) => `<button type="button" class="btn sm" data-fq="${i}">${esc(l)}</button>`).join('')}</div>
+     <label class="f">Label<input type="text" id="plfl" placeholder="e.g. Fireplace" required></label>
+     <div class="row" style="gap:10px"><label class="f" style="flex:1"><span id="plfwl">${onWall ? 'Along the wall (m)' : 'Width (m)'}</span><input type="number" step="0.05" min="0.1" inputmode="decimal" id="plfw" value="1" required></label><label class="f" style="flex:1" id="plfdw">${onWall ? 'Depth into room (m)' : 'Depth (m)'}<input type="number" step="0.05" min="0.1" inputmode="decimal" id="plfd" value="0.6"></label></div>
+     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-x>Cancel</button><button class="btn pri">Add</button></div></form>`, 'narrow');
+    const lab = $('#plfl', m), gapName = PL_FEATS[PL_FEATS.length - 1][0], isGap = () => onWall && lab.value.trim() === gapName;
+    const sync = () => { $('#plfdw', m).style.display = isGap() ? 'none' : ''; $$('[data-fq]', m).forEach(b => b.classList.toggle('on', picks[b.dataset.fq][0] === lab.value.trim())); };
+    lab.oninput = sync;
+    m.addEventListener('click', e => {
+      const q = e.target.closest('[data-fq]'); if (q) { const [l, w, h] = picks[q.dataset.fq]; lab.value = l; $('#plfw', m).value = plFmt(w); if (h) $('#plfd', m).value = plFmt(h); sync(); return; }
+      if (e.target.closest('[data-x]')) { closeModal(); res(null); }
+    });
+    $('#plff', m).onsubmit = e => { e.preventDefault(); const label = lab.value.trim(), w = parseFloat($('#plfw', m).value), h = parseFloat($('#plfd', m).value);
+      if (!label) { lab.focus(); return; } if (!(w >= 0.1) || (!isGap() && !(h >= 0.1))) return; closeModal(); res({label, w: plR(w), h: plR(h || 0), gap: isGap()}); };
+    setTimeout(() => lab.focus(), 50);
   });
 }
 function plLinkRoom(d, a) { // existing survey room, or create it
@@ -2126,8 +2226,24 @@ async function plAction(act, btn) {
       const m = PL.menu; plMenu(null); const r = f.rooms.find(x => x.id === m.rid), len = plWallLen(r, m.side), wd = Math.min(act === 'door' ? PL_DOOR : PL_WIN, len);
       plPush(); const o = {id: uid(), rid: r.id, side: m.side, type: act, width: wd, pos: Math.min(Math.max(wd / 2, plR(m.pos)), len - wd / 2), flip: 0}; f.open.push(o); PL.sel = {t: 'open', id: o.id}; plChanged(); return;
     }
-    case 'delroom': { const r = f.rooms.find(x => x.id === PL.sel.id); if (!r || !await ask('Delete room from the plan?', 'Removes the room, its doors and windows from the floor plan. The survey room and its samples stay.', 'Delete', 1)) return;
-      plPush(); f.rooms = f.rooms.filter(x => x !== r); f.open = f.open.filter(o => o.rid !== r.id); PL.sel = null; plChanged(); return; }
+    case 'feat': {
+      const m = PL.menu; plMenu(null); const r = f.rooms.find(x => x.id === m.rid), len = plWallLen(r, m.side), horiz = m.side === 'n' || m.side === 's';
+      const a = await plFeatDialog(true); if (!a) return; plPush();
+      const along = Math.min(a.w, len), c = Math.min(Math.max(along / 2, plR(m.pos)), len - along / 2);
+      if (a.gap) { const o = {id: uid(), rid: r.id, side: m.side, type: 'gap', width: along, pos: c, flip: 0}; f.open.push(o); PL.sel = {t: 'open', id: o.id}; plChanged(); return; }
+      const dep = Math.min(a.h, horiz ? r.h : r.w), x = horiz ? r.x + c - along / 2 : (m.side === 'w' ? r.x : r.x + r.w - dep), y = horiz ? (m.side === 'n' ? r.y : r.y + r.h - dep) : r.y + c - along / 2;
+      const ft = {id: uid(), label: a.label, x: plR(x), y: plR(y), w: plR(horiz ? along : dep), h: plR(horiz ? dep : along)}; plFeats(f).push(ft); PL.sel = {t: 'feat', id: ft.id}; plChanged(); return;
+    }
+    case 'featroom': {
+      const r = f.rooms.find(x => PL.sel && x.id === PL.sel.id); if (!r) return; const a = await plFeatDialog(false); if (!a) return; plPush();
+      const w = Math.min(a.w, r.w), h = Math.min(a.h, r.h), ft = {id: uid(), label: a.label, w, h, x: plR(r.x + (r.w - w) / 2), y: plR(r.y + (r.h - h) / 2)};
+      plFeats(f).push(ft); PL.sel = {t: 'feat', id: ft.id}; plChanged(); return;
+    }
+    case 'featrot': { const o = plFeats(f).find(x => x.id === PL.sel.id); plPush(); const cx = o.x + o.w / 2, cy = o.y + o.h / 2; [o.w, o.h] = [o.h, o.w]; o.x = plR(cx - o.w / 2); o.y = plR(cy - o.h / 2); plChanged(); return; }
+    case 'delfeat': plPush(); f.feats = plFeats(f).filter(o => o.id !== PL.sel.id); PL.sel = null; plChanged(); return;
+    case 'deselect': PL.sel = null; plDraw(); plPanel(); return;
+    case 'delroom': { const r = f.rooms.find(x => x.id === PL.sel.id); if (!r || !await ask('Delete room from the plan?', 'Removes the room, its doors, windows and other features from the floor plan. The survey room and its samples stay.', 'Delete', 1)) return;
+      plPush(); f.rooms = f.rooms.filter(x => x !== r); f.open = f.open.filter(o => o.rid !== r.id); f.feats = plFeats(f).filter(o => !plIn(r, o.x + o.w / 2, o.y + o.h / 2)); PL.sel = null; plChanged(); return; }
     case 'delopen': plPush(); f.open = f.open.filter(o => o.id !== PL.sel.id); PL.sel = null; plChanged(); return;
     case 'delmark': plPush(); f.marks = f.marks.filter(m => m.id !== PL.sel.id); PL.sel = null; plChanged(); return;
     case 'flip': { const o = f.open.find(x => x.id === PL.sel.id); plPush(); o.flip = ((o.flip || 0) + 1) % 4; plChanged(false); return; }
@@ -2149,9 +2265,13 @@ document.addEventListener('change', e => {
       // a corrected measurement pushes the rooms beyond that wall along with it
       const k = t.dataset.plr, edge = k === 'w' ? r.x + r.w : r.y + r.h, delta = plR(v) - r[k];
       f.rooms.forEach(o => { if (o !== r && (k === 'w' ? o.x : o.y) >= edge - 0.01) { if (k === 'w') o.x = plR(o.x + delta); else o.y = plR(o.y + delta); } });
+      plFeats(f).forEach(m => { if ((k === 'w' ? m.x : m.y) >= edge - 0.01) { if (k === 'w') m.x = plR(m.x + delta); else m.y = plR(m.y + delta); } });
       f.marks.forEach(m => { if ((k === 'w' ? m.x : m.y) >= edge - 0.01) { if (k === 'w') m.x = plR(m.x + delta); else m.y = plR(m.y + delta); } });
       r[k] = plR(v); f.open.filter(o => o.rid === r.id).forEach(o => { o.width = Math.min(o.width, plWallLen(r, o.side)); o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(r, o.side) - o.width / 2); }); } }
     plChanged(); }
+  if (t.dataset.plf) { const o = plFeats(f).find(x => PL.sel && x.id === PL.sel.id); if (!o) return; const k = t.dataset.plf;
+    if (k === 'label') { if (!t.value.trim()) return; plPush(); o.label = t.value.trim(); plChanged(); return; }
+    const v = parseFloat(t.value); if (!(v >= 0.1)) return; plPush(); o[k] = plR(v); plChanged(false); return; }
   if (t.dataset.plo) { const o = f.open.find(x => PL.sel && x.id === PL.sel.id), r = o && f.rooms.find(x => x.id === o.rid); const v = parseFloat(t.value); if (!o || !(v >= 0.3)) return; plPush();
     o.width = plR(Math.min(v, plWallLen(r, o.side))); o.pos = Math.min(Math.max(o.width / 2, o.pos), plWallLen(r, o.side) - o.width / 2); plChanged(false); }
 });
@@ -2167,17 +2287,25 @@ function plPdf(doc, d, head, M, W, H, navy) {
     const x0 = Math.min(...f.rooms.map(r => r.x)), y0 = Math.min(...f.rooms.map(r => r.y)), x1 = Math.max(...f.rooms.map(r => r.x + r.w)), y1 = Math.max(...f.rooms.map(r => r.y + r.h));
     const top = 96, bottom = H - 90, s = Math.min((W - 2 * M - 20) / (x1 - x0 || 1), (bottom - top) / (y1 - y0 || 1), 72 * 39.37 / 50);
     const ox = M + ((W - 2 * M) - (x1 - x0) * s) / 2 - x0 * s, oy = top + ((bottom - top) - (y1 - y0) * s) / 2 - y0 * s, X = x => ox + x * s, Y = y => oy + y * s;
+    const lat = v => String(v || '').replace(/[^\u0000-\u00ff\u2013\u2014\u2018\u2019]/g, '?');
+    plFeats(f).forEach(o => { doc.setDrawColor(110, 122, 128); doc.setFillColor(242, 244, 245); doc.setLineWidth(0.6); doc.setLineDashPattern([2, 1.5], 0); doc.rect(X(o.x), Y(o.y), o.w * s, o.h * s, 'FD'); doc.setLineDashPattern([], 0);
+      const fz = Math.max(4.5, Math.min(6.5, o.h * s * 0.45)); doc.setFont('helvetica', 'normal'); doc.setFontSize(fz); doc.setTextColor(70, 82, 88);
+      const lab = lat(o.label), bw = o.w * s - 3, lines = doc.splitTextToSize(lab, bw), fits = lines.length <= 2 && lines.length * fz * 1.15 <= o.h * s && lab.split(/\s+/).every(w => doc.getTextWidth(w) <= bw);
+      if (fits) doc.text(lines, X(o.x + o.w / 2), Y(o.y + o.h / 2) + fz * 0.35 - (lines.length - 1) * fz * 0.55, {align: 'center'});
+      else doc.text(lab, X(o.x + o.w) + 2.5, Y(o.y + o.h / 2) + fz * 0.35); }); // too small: label beside the box
     doc.setDrawColor(...navy); doc.setLineWidth(1.4);
     f.rooms.forEach(r => doc.rect(X(r.x), Y(r.y), r.w * s, r.h * s));
     f.open.forEach(o => { const r = f.rooms.find(x => x.id === o.rid); if (!r) return; const g = plOpenGeom(r, o);
       const ax = g.cx - g.ux * o.width / 2, ay = g.cy - g.uy * o.width / 2, bx = g.cx + g.ux * o.width / 2, by = g.cy + g.uy * o.width / 2;
       doc.setDrawColor(255, 255, 255); doc.setLineWidth(2.6); doc.line(X(ax), Y(ay), X(bx), Y(by)); doc.setDrawColor(...navy);
       if (o.type === 'window') { const k = 0.06; doc.setLineWidth(0.6); doc.line(X(ax + g.nx * k), Y(ay + g.ny * k), X(bx + g.nx * k), Y(by + g.ny * k)); doc.line(X(ax - g.nx * k), Y(ay - g.ny * k), X(bx - g.nx * k), Y(by - g.ny * k)); doc.setLineWidth(1.4); doc.line(X(ax - g.nx * k), Y(ay - g.ny * k), X(ax + g.nx * k), Y(ay + g.ny * k)); doc.line(X(bx - g.nx * k), Y(by - g.ny * k), X(bx + g.nx * k), Y(by + g.ny * k)); }
+      else if (o.type === 'gap') { const k = 0.12; doc.setLineWidth(1.4); [[ax, ay], [bx, by]].forEach(([px, py]) => doc.line(X(px + g.nx * k), Y(py + g.ny * k), X(px - g.nx * k), Y(py - g.ny * k))); }
       else { const he = (o.flip || 0) & 1, inw = ((o.flip || 0) & 2) ? -1 : 1, hx = he ? bx : ax, hy = he ? by : ay, ex = he ? ax : bx, ey = he ? ay : by, lx = hx + g.nx * o.width * inw, ly = hy + g.ny * o.width * inw;
         doc.setLineWidth(0.9); doc.line(X(hx), Y(hy), X(lx), Y(ly)); doc.setLineWidth(0.4);
         const a0 = Math.atan2(ly - hy, lx - hx), a1 = Math.atan2(ey - hy, ex - hx); let da = a1 - a0; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
         let px = lx, py = ly; for (let k = 1; k <= 12; k++) { const a = a0 + da * k / 12, qx = hx + Math.cos(a) * o.width, qy = hy + Math.sin(a) * o.width; doc.line(X(px), Y(py), X(qx), Y(qy)); px = qx; py = qy; }
         doc.setLineWidth(1.4); } });
+    doc.setDrawColor(...navy); doc.setLineWidth(1.4);
     f.rooms.forEach(r => { const name = ((d.rooms || []).find(x => x.id === r.roomId) || {}).name || r.name || ''; const cx = X(r.x + r.w / 2), cy = Y(r.y + r.h / 2), mw = r.w * s - 6;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.max(6, Math.min(9, s * 0.25))); doc.setTextColor(...navy); doc.text(doc.splitTextToSize(name, mw).slice(0, 2), cx, cy - 2, {align: 'center'});
       doc.setFont('helvetica', 'normal'); doc.setFontSize(Math.max(5.5, Math.min(7.5, s * 0.2))); doc.setTextColor(90, 105, 112); doc.text(`${plFmt(r.w)} × ${plFmt(r.h)} m`, cx, cy + 9, {align: 'center'}); });
@@ -2186,7 +2314,7 @@ function plPdf(doc, d, head, M, W, H, navy) {
     // scale bar + note
     const nice = [0.5, 1, 2, 5, 10, 20, 50].find(v => v * s >= 70) || 50, by2 = H - 62; doc.setDrawColor(...navy); doc.setLineWidth(1); doc.line(M, by2, M + nice * s, by2); doc.line(M, by2 - 4, M, by2 + 4); doc.line(M + nice * s, by2 - 4, M + nice * s, by2 + 4);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...navy); doc.text(`${nice} m`, M + nice * s / 2, by2 - 6, {align: 'center'});
-    doc.setFontSize(7.2); doc.setTextColor(90, 105, 112); doc.text('Sketch from field measurements (metres). Blue dots: sample locations, labelled with the Sample ID.', M + nice * s + 16, by2 + 2.5);
+    doc.setFontSize(7.2); doc.setTextColor(90, 105, 112); doc.text('Sketch from field measurements (metres). Blue dots: sample locations, labelled with the Sample ID. Dashed boxes: other features.', M + nice * s + 16, by2 + 2.5);
   }
 }
 
